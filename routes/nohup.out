@@ -1,0 +1,25 @@
+
+> lidyblog@0.0.0 start /home/lzqyydy/lidyblog
+> node ./bin/www
+
+
+> lidyblog@0.0.0 start /home/lzqyydy/lidyblog
+> node ./bin/www
+
+(node:22907) DeprecationWarning: Mongoose: mpromise (mongoose's default promise library) is deprecated, plug in your own promise library instead: http://mongoosejs.com/docs/promises.html
+[0mGET /apis/article/1 [36m304 [0m50.288 ms - -[0m
+[0mGET /apis/article/totalPage [36m304 [0m4.704 ms - -[0m
+[0mGET /apis/article/1 [36m304 [0m18.649 ms - -[0m
+[0mGET /apis/article/totalPage [36m304 [0m4.545 ms - -[0m
+[0mGET /apis/article/2 [32m200 [0m5.108 ms - 6119[0m
+[0mGET /apis/article/totalPage [36m304 [0m5.085 ms - -[0m
+[0mGET /apis/article/1 [36m304 [0m16.961 ms - -[0m
+[0mGET /apis/article/totalPage [36m304 [0m2.604 ms - -[0m
+[0mGET /apis/article/2 [36m304 [0m10.737 ms - -[0m
+[0mGET /apis/article/totalPage [36m304 [0m2.102 ms - -[0m
+[0mGET /apis/article/1 [36m304 [0m13.061 ms - -[0m
+[0mGET /apis/article/totalPage [36m304 [0m2.105 ms - -[0m
+[0mGET /apis/article/2 [36m304 [0m22.709 ms - -[0m
+[0mGET /apis/article/totalPage [36m304 [0m2.970 ms - -[0m
+[0mGET /apis/article/1 [36m304 [0m11.753 ms - -[0m
+[0mGET /apis/article/totalPage [36m304 [0m1.910 ms - -[0m

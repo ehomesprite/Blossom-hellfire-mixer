@@ -1,0 +1,45 @@
+doctype html
+html
+  head
+    title= title
+  body
+    input(type="file" id="files" name="files[]" multiple)
+    script.
+      function handleFileSelect_button(evt) {
+        var files = evt.target.files;
+        for (var i = 0, f; f = files[i]; i++) {
+          // Only process image files.
+          //if (!f.type.match('image.*')) {
+          //  continue;
+          //}
+          var reader = new FileReader();
+          reader.onload = (function (file) {
+            return function(e) {
+              var output = {};
+              output.name=file.name;
+              if (!file.type.match('image.*')) {
+                output.data=e.target.result;
+              }
+              else {
+                output.data=btoa(e.target.result);
+              }
+              var xhttp = new XMLHttpRequest();
+              xhttp.open("POST", "http://45.32.59.110:3000/oti/upload", true);
+              xhttp.setRequestHeader("Content-type","application/json");
+              xhttp.send(JSON.stringify(output));
+            };
+          })(f);
+
+          if (f.type.match('image.*')){
+            //reader.readAsArrayBuffer(f);
+            reader.readAsBinaryString(f);
+          }
+          else {
+            reader.readAsText(f);
+          }
+        }
+      }
+      document.getElementById('files').addEventListener('change', handleFileSelect_button, false);
+    each val in files
+      p
+        a(href=val)=val
