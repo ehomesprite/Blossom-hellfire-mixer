@@ -98,7 +98,7 @@ router.get('/posts/:section/:page', function(req, res) {
     find().
     skip(postsInAPage*(req.params.page-1)).
     limit(postsInAPage).
-    select({section: 0,repos: 0,comments: 0}).
+    select({section: 0,repos: 0}).
     sort({lastUpdate: -1}).
     exec(function(err,data){
       if(err) {
@@ -112,7 +112,7 @@ router.get('/posts/:section/:page', function(req, res) {
 
 /* Post a new post*/
 
-router.post('/posts/:section/new', function(req, res){
+router.post('/posts/new/:section', function(req, res){
   if(!Lutil.TextValidator(req.body.body)) res.sendStatus(400);
   var ID = Math.random().toString(36).substr(2,10);
   var newPost = new Post({
@@ -141,20 +141,20 @@ router.get('/repos/:postID/:page', function(req, res) {
         res.sendStatus(500);
         return console.log(err);
       }
-    if(req.params.page<=0||(req.params.page-1)*reposInAPage>data.comments.length){
+    if(req.params.page<=0||(req.params.page-1)*reposInAPage>data.repos.length){
       res.sendStatus(400);
       return;
     }
     var idList=[];
-    for(var i=0; i<data.comments.length; i++){
-      idList[i]=data.comments[i].LID;
+    for(var i=0; i<data.repos.length; i++){
+      idList[i]=data.repos[i].LID;
     }
     Repo.
     find({"LID": {$in: idList}}).
     skip(reposInAPage*(req.params.page-1)).
     limit(reposInAPage).
-    select({comments: 0}).
-    sort({date: -1}).
+    select({tweets: 0}).
+    //sort({date: -1}).
     exec(function(err,data){
       if(err) {
         res.sendStatus(500);
@@ -167,7 +167,7 @@ router.get('/repos/:postID/:page', function(req, res) {
 
 /* Post a new repo*/
 
-router.post('/repos/:postID/new', function(req, res){
+router.post('/repos/new/:postID', function(req, res){
   if(!Lutil.TextValidator(req.body.body)) res.sendStatus(400);
   var ID = Math.random().toString(36).substr(2,10);
   var newRepo = new Repo({
@@ -184,7 +184,7 @@ router.post('/repos/:postID/new', function(req, res){
       res.sendStatus(500);
       return console.log(err);
     }
-    data.comments.push({LID:ID});
+    data.repos.push({LID:ID});
     data.lastUpdate=Date.now();
     data.save(function(err, data) {
       if (err) {
@@ -204,48 +204,27 @@ router.post('/repos/:postID/new', function(req, res){
 
 /* GET tweets of specific postID or repoID by page (10 per page) */
 
-router.get('/tweets/:poID/:page', function(req, res) {
+router.get('/tweets/:repoID/:page', function(req, res) {
   var idList=[];
-  Post.
+  Repo.
   findOne({"LID": req.params.postID}).
   select('tweets').
   exec(function(err,data){
     if(err) {
-        res.sendStatus(500);
-        return console.log(err);
-      }
-    if(data.tweets.length){
-      if(req.params.page<=0||(req.params.page-1)*reposInAPage>data.comments.length){
-        res.sendStatus(400);
-        return;
-      }
-      for(var i=0; i<data.comments.length; i++){
-        idList[i]=data.comments[i].LID;
-      }
+      res.sendStatus(500);
+      return console.log(err);
     }
-    else{
-      Repo.
-      findOne({"LID": req.params.postID}).
-      select('tweets').
-      exec(function(err,data){
-        if(err) {
-          res.sendStatus(500);
-          return console.log(err);
-        }
-        if(req.params.page<=0||(req.params.page-1)*reposInAPage>data.comments.length){
-          res.sendStatus(400);
-          return;
-        }
-        for(var i=0; i<data.comments.length; i++){
-          idList[i]=data.comments[i].LID;
-        }
-      });
+    if(req.params.page<=0||(req.params.page-1)*reposInAPage>data.tweets.length){
+      res.sendStatus(400);
+      return;
+    }
+    for(var i=0; i<data.tweets.length; i++){
+      idList[i]=data.tweets[i].LID;
     }
     Tweet.
     find({"LID": {$in: idList}}).
     skip(reposInAPage*(req.params.page-1)).
     limit(reposInAPage).
-    select({comments: 0}).
     sort({date: -1}).
     exec(function(err,data){
       if(err) {
@@ -255,35 +234,36 @@ router.get('/tweets/:poID/:page', function(req, res) {
       res.json(data);
     });
   });
+
 });
 
 /* Post a new repo*/
 
-router.post('/tweets/:poID/new', function(req, res){
+router.post('/tweets/new/:repoID', function(req, res){
   if(!Lutil.TextValidator(req.body.body)) res.sendStatus(400);
   var ID = Math.random().toString(36).substr(2,10);
-  var newRepo = new Repo({
+  var newTweet = new Tweet({
     LID: ID,
     title: req.body.title||'No title',
     author: req.session.userid||'anonymous',
     body: req.body.body||'No content',
   });
   
-  Post.
-  findOne({"LID": req.params.postID}).
+  Repo.
+  findOne({"LID": req.params.repoID}).
   exec(function(err, data){
     if (err) {
       res.sendStatus(500);
       return console.log(err);
     }
-    data.comments[data.comments.length]={LID:ID};
+    data.tweets[data.tweets.length]={LID:ID};
     data.lastUpdate=Date.now();
     data.save(function(err, data) {
       if (err) {
         res.sendStatus(500);
         return console.log(err);
       }
-      newRepo.save(function(err, data) {
+      newTweet.save(function(err, data) {
         if (err) {
           res.sendStatus(500);
           return console.log(err);

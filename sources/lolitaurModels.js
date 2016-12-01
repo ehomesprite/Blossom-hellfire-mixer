@@ -11,7 +11,6 @@ var postSchema = mongoose.Schema({
   author:     String,
   body:       String,
   repos:      {type: [{LID: String}], default: []},
-  tweets:     {type: [{LID: String}], default: []},
   image:      {type: String, default: ""},
   date:       {type: Date, default: Date.now},
   lastUpdate: {type: Date, default: Date.now},
