@@ -40,8 +40,14 @@ Lutil.TextValidator = function(text){
   }
 }
 
-/* Get the number of pages for all elements */
+/* Get sections list */
+var sections = ["admin","pony","javascript","anime","tenhou"];
 
+router.get('/sections', function(req, res) {
+  res.json(sections);
+});
+
+/* Get the number of pages for all elements */
 router.get('/posts/pageCount', function(req, res) {
   Post.
   count().
@@ -95,7 +101,7 @@ router.get('/posts/:section/:page', function(req, res) {
       return;
     }
     Post.
-    find().
+    find({"section":req.params.section}).
     skip(postsInAPage*(req.params.page-1)).
     limit(postsInAPage).
     select({section: 0,repos: 0}).
@@ -118,8 +124,10 @@ router.post('/posts/new/:section', function(req, res){
   var newPost = new Post({
     LID: ID,
     title: req.body.title||'No title',
+    section: req.params.section||'',
     author: req.session.userid||'anonymous',
     body: req.body.body||'No content',
+    image: req.body.image||'',
   });
   newPost.save(function(err, data) {
     if (err) {
@@ -175,6 +183,7 @@ router.post('/repos/new/:postID', function(req, res){
     title: req.body.title||'No title',
     author: req.session.userid||'anonymous',
     body: req.body.body||'No content',
+    image: req.body.image||'',
   });
   
   Post.
