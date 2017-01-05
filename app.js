@@ -13,14 +13,18 @@ var blog = require('./routes/blog');
 var oti = require('./routes/oti');
 var apis_blog = require('./routes/apis_blog');
 var apis_lolitaur = require('./routes/apis_lolitaur');
+var socket_snowchat = require('./routes/socket_snowchat');
 var app = express();
+
+var server = require('http').Server(app);
+var io = require('socket.io')(server);
+
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 
 // uncomment after placing your favicon in /public
-app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(favicon(path.join(__dirname, '../static', 'favicon.ico')));
 app.use(logger('dev'));
 app.use(bodyParser.json({limit: '5mb'}));
@@ -62,6 +66,8 @@ app.use('/apis', function(req, res, next) {
 app.use('/apis/blog', apis_blog);
 app.use('/apis/lolitaur', apis_lolitaur);
 
+socket_snowchat(io);
+
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   var err = new Error('Not Found');
@@ -94,4 +100,4 @@ app.use(function(err, req, res, next) {
 });
 
 
-module.exports = app;
+module.exports = {app: app, server: server};
