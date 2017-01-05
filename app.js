@@ -21,6 +21,7 @@ app.set('view engine', 'jade');
 
 // uncomment after placing your favicon in /public
 app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
+app.use(favicon(path.join(__dirname, '../static', 'favicon.ico')));
 app.use(logger('dev'));
 app.use(bodyParser.json({limit: '5mb'}));
 app.use(bodyParser.urlencoded({limit: '5mb', extended: false }));//传图的时候加了limit
@@ -40,7 +41,7 @@ app.use(stylus.middleware({
   src: __dirname + '/public' 
 }));
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '../static')));
 
 app.use(function(req, res, next){
   if(!req.session.userid){
