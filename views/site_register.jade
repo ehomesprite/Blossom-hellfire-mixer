@@ -1,0 +1,30 @@
+extends base_layout
+
+block style
+  link(rel='stylesheet', href='/snowchat/css/style.css')
+  link(rel='stylesheet', href='/snowchat/lib/bootstrap/css/bootstrap.css')
+  link(rel='stylesheet', href='/snowchat/lib/font-awesome/css/font-awesome.css')
+
+block content
+  .container-fluid
+    h2= title
+    .alert.alert-danger(style='display:'+(errDisplay||'none'))= errText
+    form.form-horizonal(method='post' action= '/users/register')
+      .form-group
+        label.control-label.col-sm-2(for='username')= '\u7528\u6237\u540d:'
+        .col-sm-10
+          input.form-control#username(type='username', name="username", placeholder='\u8f93\u5165\u7528\u6237\u540d')
+      .form-group
+        label.control-label.col-sm-2(for='password')= '\u5bc6\u7801:'
+        .col-sm-10
+          input.form-control#password(type='password', name="password", placeholder='\u8f93\u5165\u5bc6\u7801')
+      .form-group
+        .col-sm-offset-2.col-sm-10
+          .checkbox
+            label
+              input(type='checkbox')
+            = 'Accept '
+            a(href='#')= 'terms'
+      .form-group
+        .col-sm-offset-2.col-sm-10
+          button.btn.btn-default(type='submit')= 'Submit'

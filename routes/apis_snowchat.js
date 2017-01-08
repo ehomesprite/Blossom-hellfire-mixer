@@ -1,3 +1,7 @@
+var express = require('express');
+var router = express.Router();
+
+
 var ioResponse = function(io){
   io.on('connection', function(socket){
     console.log('a user connected');
@@ -11,4 +15,4 @@ var ioResponse = function(io){
 }
 
 
-module.exports = ioResponse;
+module.exports = {router: router, socket: ioResponse};
