@@ -17,7 +17,7 @@ router.post('/token', function(req, res){
 					rClient.expire('chat:userToken:'+req.session.user.UID, 30);
 					rClient.set('chat:tokenUser:'+token, JSON.stringify(req.session.user));
 					rClient.expire('chat:tokenUser:'+token, 30);
-					res.json({uid: req.session.user.UID, username: req.session.user.UID, token: token});
+					res.json({uid: req.session.user.UID, username: req.session.user.username, token: token});
     			console.log('token sent');
 				});
 			}
@@ -53,10 +53,10 @@ var ioResponse = function(io){
     			socket.user = JSON.parse(user);
     			console.log(socket.user.username+' signed in');
     			onlineUsers.push(user);
-      		io.emit('userList', onlineUsers);
+      		io.emit('userList', JSON.stringify(onlineUsers));
     		}
     		else{
-    			socket.emit('chatError', 'Invalid token');
+    			socket.emit('chatError', {error: 200, errorText:'Invalid token'});
     		}
     	});
     });
@@ -69,7 +69,7 @@ var ioResponse = function(io){
 						rClient.expire('chat:tokenUser:'+socket.token, 2*3600);
     			}
     			else{
-    				socket.emit('chatError', {error: 200, errorText:'token expired'})
+    				socket.emit('chatError', {error: 201, errorText:'token expired'})
     			}
 				});
     	}
@@ -81,7 +81,7 @@ var ioResponse = function(io){
 		    rClient.del('chat:tokenUser:'+socket.token);
       	console.log(socket.user.username+' signed out');
 		  	onlineUsers.splice(onlineUsers.indexOf(socket.user),1);
-		    io.emit('userList', onlineUsers);
+		    io.emit('userList', JSON.stringify(onlineUsers);
 		  }
 		  else{
 		  	console.log('token error. check for sync problems(user)');
