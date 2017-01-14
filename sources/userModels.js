@@ -5,7 +5,7 @@ var userModels = {};
 var userConnection = mongoose.createConnection('mongodb://localhost/user');
 
 var userSchema = mongoose.Schema({
-  UID:       String,
+  UID:       Number,
   username:  String,
   password:  String, 
   avatar:    {type: String, default: ""},
@@ -14,6 +14,6 @@ var userSchema = mongoose.Schema({
 
 userSchema.index({ UID: 1, type: -1 });
 
-userModels.User = userConnection.model('User', userSchema);
+userModels.User = userConnection.model('user', userSchema);
 
 module.exports = userModels;
