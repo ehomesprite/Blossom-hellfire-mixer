@@ -17,12 +17,12 @@ router.post('/token', function(req, res){
 					rClient.expire('chat:userToken:'+req.session.user.UID, 30);
 					rClient.set('chat:tokenUser:'+token, JSON.stringify(req.session.user));
 					rClient.expire('chat:tokenUser:'+token, 30);
-					res.json({uid: req.session.user.uid, token: token});
+					res.json({uid: req.session.user.UID, username: req.session.user.UID, token: token});
     			console.log('token sent');
 				});
 			}
 			else{
-			  res.json({uid: req.session.user.uid, token: replies});
+			  res.json({uid: req.session.user.UID, username: req.session.user.UID, token: replies});
 				//res.json({error: 101, errorText: 'token already exist'});
     		console.log('token exist');
 			}
