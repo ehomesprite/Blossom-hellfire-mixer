@@ -22,7 +22,7 @@ router.post('/token', function(req, res){
 				});
 			}
 			else{
-			  res.json({uid: req.session.user.UID, username: req.session.user.UID, token: replies});
+			  res.json({uid: req.session.user.UID, username: req.session.user.username, token: replies});
 				//res.json({error: 101, errorText: 'token already exist'});
     		console.log('token exist');
 			}
@@ -52,7 +52,7 @@ var ioResponse = function(io){
     			socket.token = token;
     			socket.user = JSON.parse(user);
     			console.log(socket.user.username+' signed in');
-    			onlineUsers.push(user);
+    			onlineUsers.push(socket.user);
       		io.emit('userList', JSON.stringify(onlineUsers));
     		}
     		else{
@@ -81,7 +81,7 @@ var ioResponse = function(io){
 		    rClient.del('chat:tokenUser:'+socket.token);
       	console.log(socket.user.username+' signed out');
 		  	onlineUsers.splice(onlineUsers.indexOf(socket.user),1);
-		    io.emit('userList', JSON.stringify(onlineUsers);
+		    io.emit('userList', JSON.stringify(onlineUsers));
 		  }
 		  else{
 		  	console.log('token error. check for sync problems(user)');
