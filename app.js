@@ -54,15 +54,13 @@ app.use(express.static(path.join(__dirname, '../static')));
 
 app.use('/', index);
 app.use('/users', users);
-app.use('/apis', function(req, res, next) {  
-  res.header("Access-Control-Allow-Origin", "*");  
-  res.header("Access-Control-Allow-Headers", "X-Requested-With");  
+app.use('/apis', function(req, res, next) {
   next();  
  });  
 //app.use('/apis/blog', apis_blog);
 //app.use('/apis/lolitaur', apis_lolitaur);
 app.use('/apis/snowchat', apis_snowchat.router);
-apis_snowchat.socket(io);
+apis_snowchat.socket(io.of('/snowchat'));
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
