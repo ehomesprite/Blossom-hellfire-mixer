@@ -37,10 +37,10 @@ router.post('/token', function(req, res){
 var emojiList = [
 	{
 		category:'bbemybaby',
-		emoji:{
+		emoji:[
 			{name: 'usamin', desc: '\u30a6\u30b5\u30df\u30f3'},
 			{name: 'shugaha', desc: '\u3057\u3085\u304c\u306f'}
-		}
+		],
 	},
 ];
 
