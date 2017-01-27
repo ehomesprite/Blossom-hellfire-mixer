@@ -12,6 +12,7 @@ var users = require('./routes/users');
 var apis_blog = require('./routes/apis_blog');
 var apis_lolitaur = require('./routes/apis_lolitaur');
 var apis_snowchat = require('./routes/apis_snowchat');
+var apis_touhou = require('./routes/apis_touhou');
 var app = express();
 
 var server = require('http').Server(app);
@@ -60,7 +61,9 @@ app.use('/apis', function(req, res, next) {
 //app.use('/apis/blog', apis_blog);
 //app.use('/apis/lolitaur', apis_lolitaur);
 app.use('/apis/snowchat', apis_snowchat.router);
+app.use('/apis/touhou', apis_touhou.router);
 apis_snowchat.socket(io.of('/snowchat'));
+apis_touhou.socket(io.of('/touhou'));
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
