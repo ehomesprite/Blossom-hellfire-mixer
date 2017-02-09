@@ -1,26 +1,18 @@
 var express = require('express');
 var router = express.Router();
+var crypto = require('crypto');
 
-//手牌中,用4组标记数量
-
-//副露中,用0-9标记吃牌和碰牌的位置和玩家
-//0:暗杠
-//1:吃1位,上家/碰,上家
-//2:吃2位,上家
-//3:吃3位,上家
-//4:吃1位,对家/碰,对家
-//5:吃2位,对家
-//6:吃3位,对家
-//7:吃1位,下家/碰,下家
-//8:吃2位,下家
-//9:吃3位,下家
 
 function tehai(){
+	this.point = [25000,25000,25000,25000];
+	this.haiIndex = [];
 	this.hai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 	this.furo = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 	this.dora = [0,0,0,0,0,0,0,0,0,0];
+	this.discard = [[],[],[],[]];
 	this.agariHai = null;
   this.agariFrom = null;
+	this.round = 0;
   this.ji = null;
   this.ba = null;
   this.chitoi = false;
@@ -1277,12 +1269,302 @@ var agariPoint = function(){
   };
 }();
 
+//need login for advanced user auth
 var ioResponse = function(io){
+
+	var online = 0;
+
+	var playerQueue = [];
+
+	var nextplayer = function(current){
+		return (current+1)%4;
+	}
+
+	var hostInit = function(){
+		if(playerQueue.length>=4){
+			var players = [];
+			for(var i=0;i<4;i++){
+				players.push(playerQueue.shift());
+				players[i].number = i;
+				players[i].tehai = new tehai();
+			}
+			var gameOperate = hostCreate(players);
+			for(var i=0;i<4;i++){
+				players[i].operate = gameOperate;
+			}
+			for(var i=0;i<4;i++){
+				players[i].emit('full');
+			}
+		}
+	}
+	//岭上牌4张
+	//宝牌10张
+	//起手牌52张
+	//摸牌70张
+	var hostCreate = function(participants){
+		var players = participants;
+		var round = 0;
+		//一局进行状态
+		//-2:结束
+		//-1:等待开始
+		//0-3:等待对应玩家出牌
+		//&4+0/3:等待玩家吃牌
+		//&8+0/3:等待玩家碰/杠牌
+		//后两者可进行复合
+		var state = -1;
+		var lastHai = -1;
+		var yama = [];
+		for(var j=0;j<136;j++){
+			yama[j] = j;
+		}
+		var rand;
+		var tmp;
+		for(var j=0;j<136*5;j++){
+			rand = Math.random()*136;
+			tmp = yama[Math.floor(rand)];
+			yama[Math.floor(rand)] = yama[j%136];
+			yama[j%136] = tmp;
+		}
+		console.log(JSON.stringify(yama));
+		var playerReady = 0;
+		return function(instruction,param){
+			switch(instruction){
+				case 'ready':
+					if(state===-1&&playerReady<4&&playerReady>=0)playerReady++; 
+					if(playerReady>=4){
+						playerReady = 0;
+						lastHai = -1;
+						for(var i=0;i<12*4;i++){
+							var drawHai = yama.shift();
+							players[(round+Math.floor(i/4)%4)%4].tehai.haiIndex.push(drawHai);
+							players[(round+Math.floor(i/4)%4)%4].tehai.hai[Math.floor(drawHai/4)]++;
+						}
+						for(var i=0;i<4;i++){
+							var drawHai = yama.shift();
+							players[(round+i)%4].tehai.haiIndex.push(drawHai);
+							players[(round+i)%4].tehai.hai[Math.floor(drawHai/4)]++;
+							players[(round+i)%4].tehai.round = round;
+							players[(round+i)%4].tehai.ji = 27+(4-round%4+i)%4;
+							players[(round+i)%4].tehai.ba = 27+Math.floor(round/4);
+						}
+						for(var i=0;i<4;i++){
+							players[i].emit('start',players[i].tehai);
+						}
+						//置状态为开始状态,庄家摸牌
+						state = round%4;
+						var drawHai = yama.shift();
+						players[state].tehai.haiIndex.push(drawHai);
+						players[state].tehai.hai[Math.floor(drawHai/4)]++;
+						players[state].emit('draw',drawHai);
+					}
+					break;
+				case 'discard':
+					if(state===this.number){
+						if(this.tehai.haiIndex.indexOf(param)!==-1){
+							//从手牌中移除
+							this.tehai.haiIndex.splice(this.tehai.haiIndex.indexOf(param),1);
+							this.tehai.hai[Math.floor(param/4)]--;
+							//将打牌置入弃牌对象中
+							for(var i=0;i<4;i++){
+								players[(this.number+i)%4].tehai.discard[(4-i)%4].push(param);
+							}
+							//分发打牌数据
+							for(var i=0;i<4;i++){
+								players[i].emit('discard', players[i].tehai.discard);
+							}
+							lastHai = param;
+
+							//检查副露(TODO)
+							//吃
+							//碰
+							//杠
+
+							//检查和牌
+							for(var i=0;i<4;i++){
+								players[i].tehai.haiIndex.push(param);
+								players[i].tehai.hai[Math.floor(param/4)]++;
+								var test = JSON.parse(JSON.stringify(players[i].tehai));
+								agariCheck(test);
+								if(test.agari.count){
+									console.log(JSON.stringify(test));
+									players[i].emit('hu');
+									state+=16384*Math.pow(2,i);//置等待和牌标记位
+								}
+								players[i].tehai.hai[Math.floor(param/4)]--;
+								players[i].tehai.haiIndex.pop();
+							}
+
+							//将打牌从弃牌对象中移除
+							//for(var i=0;i<4;i++){
+							//	players[(this.number+i)%4].tehai.discard[(4-i)%4].pop();
+							//}
+
+							//无事发生
+							if(state>=0&&state<4){
+								if(yama.length>10){
+									//下家摸牌
+									state = nextplayer(state);
+									var drawHai = yama.shift();
+									players[state].tehai.haiIndex.push(drawHai);
+									players[state].tehai.hai[Math.floor(drawHai/4)]++;
+									players[state].emit('draw',drawHai);
+								}
+								else{
+									//流局
+									for(var i=0;i<4;i++){
+										players[i].emit('roundEnd');
+									}
+									//局数提升
+									round++;
+									if(round<8){
+										state = -1;
+									}
+									else{
+										state = -2;
+										for(var i=0;i<4;i++){
+											players[i].emit('gameEnd');
+										}
+									}
+								}
+							}
+						}
+						else{
+							//牌不存在
+							//error handling. disconnect etc.
+						}
+					}
+					else{
+						//state不对
+						//error handling. disconnect etc.
+					}
+					break;
+				case 'chi':
+					break;
+				case 'pon':
+					break;
+				case 'kan':
+					break;
+				case 'hu':
+					if(state&16384*Math.pow(2,this.number)){
+						if(param){
+							if(this.tehai.haiIndex.length<14){
+								this.tehai.haiIndex.push(lastHai);
+								this.tehai.hai[Math.floor(lastHai/4)]++;
+							}
+							agariCheck(this.tehai);
+							//理论上成功进到这里应为可以和的牌型
+							if(this.tehai.agari.count){
+								agariPoint(this.tehai);
+								var result = {
+									players: this.number,
+									haiIndex: this.tehai.haiIndex,
+									fu: {},
+									han: {},
+									basePoint: 0
+								};
+								//结算
+								for(var i=0;i<this.tehai.agari.result.length;i++){
+									if(this.tehai.agari.result[i].basePoint>result.basePoint){
+										result.basePoint = this.tehai.agari.result[i].basePoint;
+										result.fu = this.tehai.agari.result[i].fu;
+										result.han = this.tehai.agari.result[i].han;
+									}
+								}
+								for(var i=0;i<4;i++){
+									players[i].emit('roundEnd',result);
+								}
+								state = -1;
+								//中断,等着开下一局
+								break;
+							}
+						}
+						state-=16384*Math.pow(2,this.number);
+						//恢复正常
+						if(state>=0&&state<4){
+							if(yama.length>10){
+								//下家摸牌
+								state = nextplayer(state);
+								var drawHai = yama.shift();
+								players[state].tehai.haiIndex.push(drawHai);
+								players[state].tehai.hai[Math.floor(drawHai/4)]++;
+								players[state].emit('draw',drawHai);
+							}
+							else{
+								//流局
+								for(var i=0;i<4;i++){
+									players[i].emit('roundEnd');
+								}
+								//局数提升
+								round++;
+								if(round<8){
+									state = -1;
+								}
+								else{
+									state = -2;
+									for(var i=0;i<4;i++){
+										players[i].emit('gameEnd');
+									}
+								}
+							}
+						}
+					}
+					else{
+						//state不对
+						//error handling. disconnect etc.
+					}
+					break;
+				case 'disconnect':
+					break;
+			}
+		}
+	};
+
+	//player:join
+	//server:full
+	//player:ready
+	//server:start(with initial hand)
+	//player:operation
+	//	discard
+	//	opration
+	//		chi
+	//		pon
+	//		kan
+	//		hu
+	//server:response
+	//	draw
+	//	opration
+	//		chi
+	//		pon
+	//		kan
+	//		hu
+	//	roundEnd(with data if someone hu'ed)
+	//	gameEnd
 	io.on('connection', function(socket){
-		console.log('a user connected');
+		online++;
+		console.log(socket.id + ' Log in. Online: ' + online);
+
+		socket.on('join', function(){
+			var pos = playerQueue.indexOf(socket);
+			if(pos===-1)playerQueue.push(socket);
+			console.log('Current in queue: ' + playerQueue.length);
+			if(playerQueue.length>=4){
+				hostInit();
+			}
+		});
+
+		socket.on('ready', function(){
+			socket.operate('ready');
+		});
+		socket.on('discard', function(hai){
+			console.log('Player ' + socket.number + ' discarded ' + hai);
+			socket.operate('discard',hai);
+		});
 
 		socket.on('disconnect', function(){
-			console.log('user disconnected');
+			online--;
+			var pos = playerQueue.indexOf(socket);
+			if(pos!==-1)playerQueue.splice(pos,1);
+			console.log(socket.id + ' Log out. Online: ' + online);
 		});
 	});
 }

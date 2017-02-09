@@ -75,6 +75,10 @@ router.post('/register', function(req, res) {
       "site_register",{title: "\u6ce8\u518c", errDisplay:"block", errText:"Password too short (at least 6 chracters)."});
 
     }
+    else if(req.body.terms!=="on"){
+      res.render(
+      "site_register",{title: "\u6ce8\u518c", errDisplay:"block", errText:"Must accept terms."});
+    }
     else{
       User.
       findOne({username: req.body.username}).

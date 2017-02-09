@@ -1,0 +1,19 @@
+extends base_layout
+
+block style
+  style
+    |h2{
+    |  text-align:center
+    |}
+    |p{
+    |  text-align:center
+    |}
+block content
+  each app in apps
+    h2= '\u300c'+app.name+'\u300d'
+    p
+      span= '<'
+      a(href= app.addr,target= 'blank')=app.addr
+      span= '>'
+    each desc in app.descs
+      p= desc
