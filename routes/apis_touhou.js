@@ -1314,18 +1314,6 @@ var ioResponse = function(io){
 		var state = -1;
 		var lastHai = -1;
 		var yama = [];
-		for(var j=0;j<136;j++){
-			yama[j] = j;
-		}
-		var rand;
-		var tmp;
-		for(var j=0;j<136*5;j++){
-			rand = Math.random()*136;
-			tmp = yama[Math.floor(rand)];
-			yama[Math.floor(rand)] = yama[j%136];
-			yama[j%136] = tmp;
-		}
-		console.log(JSON.stringify(yama));
 		var playerReady = 0;
 		return function(instruction,param){
 			switch(instruction){
@@ -1334,6 +1322,39 @@ var ioResponse = function(io){
 					if(playerReady>=4){
 						playerReady = 0;
 						lastHai = -1;
+						//初始化牌山
+						for(var j=0;j<136;j++){
+							yama[j] = j;
+						}
+						var rand;
+						var tmp;
+						for(var j=0;j<136*5;j++){
+							rand = Math.random()*136;
+							tmp = yama[Math.floor(rand)];
+							yama[Math.floor(rand)] = yama[j%136];
+							yama[j%136] = tmp;
+						}
+						console.log(JSON.stringify(yama));
+						//初始化该局变量
+						for(var i=0;i<4;i++){
+							players[i].tehai.haiIndex = [];
+							players[i].tehai.hai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+							players[i].tehai.furo = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+							players[i].tehai.dora = [0,0,0,0,0,0,0,0,0,0];
+							players[i].tehai.discard = [[],[],[],[]];
+							players[i].tehai.agariHai = null;
+						  players[i].tehai.agariFrom = null;
+						  players[i].tehai.chitoi = false;
+						  players[i].tehai.kokushi = false;
+						  players[i].tehai.first = false;
+						  players[i].tehai.last = false;
+						  players[i].tehai.riichi = false;
+						  players[i].tehai.ippatsu = false;
+						  players[i].tehai.rinsyan = false;
+						  players[i].tehai.double = false;
+						  players[i].tehai.chankan = false;
+						  players[i].tehai.nakashi = false;
+						}
 						for(var i=0;i<12*4;i++){
 							var drawHai = yama.shift();
 							players[(round+Math.floor(i/4)%4)%4].tehai.haiIndex.push(drawHai);
@@ -1378,6 +1399,7 @@ var ioResponse = function(io){
 							//吃
 							//碰
 							//杠
+							//自摸
 
 							//检查和牌
 							for(var i=0;i<4;i++){
@@ -1411,6 +1433,7 @@ var ioResponse = function(io){
 								}
 								else{
 									//流局
+									console.log('ryokyoku');
 									for(var i=0;i<4;i++){
 										players[i].emit('roundEnd');
 									}
@@ -1445,8 +1468,11 @@ var ioResponse = function(io){
 				case 'kan':
 					break;
 				case 'hu':
+					console.log('enter');
 					if(state&16384*Math.pow(2,this.number)){
+					console.log('success');
 						if(param){
+					console.log('true');
 							if(this.tehai.haiIndex.length<14){
 								this.tehai.haiIndex.push(lastHai);
 								this.tehai.hai[Math.floor(lastHai/4)]++;
@@ -1470,6 +1496,7 @@ var ioResponse = function(io){
 										result.han = this.tehai.agari.result[i].han;
 									}
 								}
+								console.log('ron');
 								for(var i=0;i<4;i++){
 									players[i].emit('roundEnd',result);
 								}
@@ -1490,6 +1517,7 @@ var ioResponse = function(io){
 								players[state].emit('draw',drawHai);
 							}
 							else{
+								console.log('ryokyoku');
 								//流局
 								for(var i=0;i<4;i++){
 									players[i].emit('roundEnd');
@@ -1558,6 +1586,10 @@ var ioResponse = function(io){
 		socket.on('discard', function(hai){
 			console.log('Player ' + socket.number + ' discarded ' + hai);
 			socket.operate('discard',hai);
+		});
+		socket.on('hu', function(param){
+			console.log('Player ' + socket.number + ' hu ' +param);
+			socket.operate('hu',param);
 		});
 
 		socket.on('disconnect', function(){
