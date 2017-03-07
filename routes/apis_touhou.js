@@ -2,17 +2,91 @@ var express = require('express');
 var router = express.Router();
 var crypto = require('crypto');
 
-//TODO:副露的表示由散列单值替换为散列数组值
-function tehai(){
-	this.point = [25000,25000,25000,25000];
-	this.haiIndex = [];
-	this.hai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-	this.furo = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-	this.dora = [0,0,0,0,0,0,0,0,0,0];
-	this.discard = [[],[],[],[]];
-	this.agariHai = null;
+//副露的表示由散列单值替换为散列数组值
+//副露标记
+//0:吃1位
+//1:吃2位
+//2:吃3位
+//3:碰下家
+//4:碰对家
+//5:碰上家
+//6:杠下家
+//7:杠对家
+//8:杠上家
+//9:暗杠
+//10:加杠下家
+//11:加杠对家
+//12:加杠上家
+function Furo(){
+  this.data = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]];
+}
+Furo.prototype.isValid = function(){
+  if(this.data.length!==34){
+    return false;
+  }
+  else{  
+    for(var i=0;i<this.data.length;i++){
+      for(var j=0;j<this.data[i].length;j++){
+        if(this.data[i][j]<1||this.data[i][j]>16){
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+Furo.prototype.count = function(){
+  var count = 0;
+  for(var i=0;i<this.data.length;i++){
+    if(this.data[i].length!==0){
+      count+=this.data[i].length;
+    }
+  }
+  return count;
+}
+Furo.prototype.noFuro = function(hai){
+  if(this.data[hai].length===0){
+    return true;
+  }
+  else{
+    return false;
+  }
+}
+Furo.prototype.exist = function(hai,type){
+  if(this.data[hai].indexOf(type)!==-1){
+    return true;
+  }
+  else{
+    return false;
+  }
+}
+Furo.prototype.set = function(hai,type){
+  this.data[hai].push(type);
+}
+//碰→杠
+Furo.prototype.upgrade = function(hai){
+  if(this.data[hai].indexOf(3)!==1){
+    this.data[this.data[hai].indexOf(3)]+=6;
+  }
+  if(this.data[hai].indexOf(4)!==1){
+    this.data[this.data[hai].indexOf(4)]+=6;
+  }
+  if(this.data[hai].indexOf(5)!==1){
+    this.data[this.data[hai].indexOf(5)]+=6;
+  }
+}
+
+function Tehai(){
+  this.point = [25000,25000,25000,25000];
+  this.haiIndex = [];
+  this.hai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+  this.validHai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+  this.furo = new Furo();
+  this.dora = [0,0,0,0,0,0,0,0,0,0];
+  this.discard = [[],[],[],[]];
+  this.agariHai = null;
   this.agariFrom = null;
-	this.round = 0;
+  this.round = 0;
   this.ji = null;
   this.ba = null;
   this.chitoi = false;
@@ -27,20 +101,16 @@ function tehai(){
   this.nakashi = false;
 };
 
-//TODO:统一的1+13判断
-function operation(){
-	//副露使用object
-	//	index:牌
-	//	value:数值
-	//用以表示复数可能
-	this.furo = [];
-	this.agari = false;
-	this.riichi = false;
+function Operation(){
+  this.chi = false;
+  this.pon = false;
+  this.kan = false;
+  this.agari = false;
+  this.riichi = false;
 }
 
 var tehaiTypes = 34;
 
-//TODO:振听
 var agariCheck = function(){
   var chitoiCheck = function(tehai){
     var agari = {
@@ -191,18 +261,16 @@ var agariCheck = function(){
     //3:根据各家牌判断和牌存不存在
     var tehai;
     if(typeof data === 'string'){
-			tehai = JSON.parse(data);
+      tehai = JSON.parse(data);
     }
     else{
-    	tehai = data;
+      tehai = data;
     }
 
-    
-    //console.log(tehai.hai.length);
-    //console.log(tehai.furo.length);
+
 
     //数据基本范围不正确时
-    if(tehai.hai.length!==tehaiTypes||tehai.furo.length!==tehaiTypes||tehai.agari<0||tehai.agari>=tehaiTypes){
+    if(tehai.hai.length!==tehaiTypes||!tehai.furo.isValid()||tehai.agari<0||tehai.agari>=tehaiTypes){
       return;
     }
     //和的牌并不在手牌中时
@@ -211,15 +279,12 @@ var agariCheck = function(){
     }
 
     //副露数量不正确时
-    tehai.furoCount = 0;
-    for(var i=0;i<tehaiTypes;i++){
-      if(tehai.furo[i]!==0)
-        tehai.furoCount++;
-    }
+    tehai.furoCount = tehai.furo.count();
     tehai.ankanCount = 0;
     for(var i=0;i<tehaiTypes;i++){
-      if(tehai.furo[i]!==0&&tehai.furo[i]!==13)
+      if(tehai.furo.exist(i,9)){
         tehai.ankanCount++;
+      }
     }
 
     if(tehai.furoCount>4){
@@ -253,39 +318,47 @@ var agariCheck = function(){
           count: 0,
           result: []
         };
-        for(var i=0;i<tehaiTypes;i++){
-          if(tehai.hai[i]>=2){
-            tehai.hai[i]-=2;
-            //国士判定
-            if(i>=27||i%9===0||i%9===8){
-              var kokushi = kokushiCheck(tehai);
-              if(kokushi.count>0){
-                tehai.agari.count+=kokushi.count;
-                tehai.agari.result.push(kokushi.result[0]);//应该只返回一种,暂定
+        //振听判定
+        //打出过和牌且和牌不是自摸
+        if(tehai.discard[0].indexOf(tehai.agariHai)!==-1&&tehai.agariFrom!==0){
+          return false;
+        }
+        else{
+          for(var i=0;i<tehaiTypes;i++){
+            if(tehai.hai[i]>=2){
+              tehai.hai[i]-=2;
+              //国士判定
+              if(i>=27||i%9===0||i%9===8){
+                var kokushi = kokushiCheck(tehai);
+                if(kokushi.count>0){
+                  tehai.agari.count+=kokushi.count;
+                  tehai.agari.result.push(kokushi.result[0]);//应该只返回一种,暂定
+                }
               }
-            }
-            //普通型判定
-            var men = mentsuRemove(tehai);
-            if(men.count>0){
-              tehai.agari.count+=men.count;
-              for(var k=0;k<men.result.length;k++){
-                men.result[k].jyan = i;
-                tehai.agari.result.push(men.result[k]);
+              //普通型判定
+              var men = mentsuRemove(tehai);
+              if(men.count>0){
+                tehai.agari.count+=men.count;
+                for(var k=0;k<men.result.length;k++){
+                  men.result[k].jyan = i;
+                  tehai.agari.result.push(men.result[k]);
+                }
               }
+              tehai.hai[i]+=2;
             }
-            tehai.hai[i]+=2;
+          }
+          //七对判定,因为取雀头导致重复放在外面
+          //为全部识别出的牌型添加七对标记
+          var chitoi = chitoiCheck(tehai)
+          if(chitoi.count>0){
+            tehai.agari.count++;
+            tehai.agari.result.push(chitoi.result[0]);
+            tehai.chitoi = true;
           }
         }
-        //七对判定,因为取雀头导致重复放在外面
-        //为全部识别出的牌型添加七对标记
-        var chitoi = chitoiCheck(tehai)
-        if(chitoi.count>0){
-          tehai.agari.count++;
-          tehai.agari.result.push(chitoi.result[0]);
-          tehai.chitoi = true;
-        }
+        return tehai;
       }
-      return tehai;
+      //TODO: 流局满贯标记
     }
     else{
       return false;
@@ -334,33 +407,36 @@ var agariPoint = function(){
               case 31:
               case 32:
               case 33:
-                if(tehai.furo[j]!==0){
-                  if(tehai.furo[j]<13){
-                    fu.kotsu+=4;
-                  }
-                  if(tehai.furo[j]===13){
-                    fu.kotsu+=32;
-                  }
-                  if(tehai.furo[j]>13){
-                    fu.kotsu+=16;
-                  }
+                //碰
+                if(tehai.furo.exist(j,3)||tehai.furo.exist(j,4)||tehai.furo.exist(j,5)){
+                  fu.kotsu+=4;
                 }
+                //杠
+                else if(tehai.furo.exist(j,6)||tehai.furo.exist(j,7)||tehai.furo.exist(j,8)||tehai.furo.exist(j,10)||tehai.furo.exist(j,11)||tehai.furo.exist(j,12)){
+                  fu.kotsu+=16;
+                }
+                //暗杠
+                else if(tehai.furo.exist(j,9)){
+                  fu.kotsu+=32;
+                }
+                //手牌中暗刻
                 else{
                   fu.kotsu+=8;
                 }
                 break;
               default:
-                if(tehai.furo[j]!==0){
-                  if(tehai.furo[j]<13){
-                    fu.kotsu+=2;
-                  }
-                  if(tehai.furo[j]===13){
-                    fu.kotsu+=16;
-                  }
-                  if(tehai.furo[j]>13){
-                    fu.kotsu+=8;
-                  }
+                if(tehai.furo.exist(j,3)||tehai.furo.exist(j,4)||tehai.furo.exist(j,5)){
+                  fu.kotsu+=2;
                 }
+                //杠
+                else if(tehai.furo.exist(j,6)||tehai.furo.exist(j,7)||tehai.furo.exist(j,8)||tehai.furo.exist(j,10)||tehai.furo.exist(j,11)||tehai.furo.exist(j,12)){
+                  fu.kotsu+=8;
+                }
+                //暗杠
+                else if(tehai.furo.exist(j,9)){
+                  fu.kotsu+=16;
+                }
+                //手牌中暗刻
                 else{
                   fu.kotsu+=4;
                 }
@@ -881,16 +957,16 @@ var agariPoint = function(){
           var kan = 0;
           for(var j=0;j<tehaiTypes;j++){
             if(tehai.agari.result[i].ko[j]!==0){
-              if(tehai.furo[j]===0){
+              if(tehai.furo.noFuro(j)){
                 if(j!==tehai.agariHai){
                   anko++;
                 }
               }
-              if(tehai.furo[j]===13){
+              if(tehai.furo.exist(j,9)){
                 anko++;
                 kan++;
               }
-              if(tehai.furo[j]>13){
+              if(tehai.furo.exist(j,6)||tehai.furo.exist(j,7)||tehai.furo.exist(j,8)||tehai.furo.exist(j,10)||tehai.furo.exist(j,11)||tehai.furo.exist(j,12)){
                 kan++;
               }
             }
@@ -1229,48 +1305,48 @@ var agariPoint = function(){
   };
   var basePoint = function(tehai){
     for(var i=0;i<tehai.agari.result.length;i++){
-    	if(tehai.agari.result[i].han.count>0){
-	      var basePoint = tehai.agari.result[i].fu.count*Math.pow(2,tehai.agari.result[i].han.count+2);
-	      if(basePoint>=2000){
-	        if(tehai.agari.result[i].han.count)
-	        switch(tehai.agari.result[i].han.count){
-	          case 3:
-	          case 4:
-	          case 5:
-	            basePoint = 2000;
-	            break;
-	          case 6:
-	          case 7:
-	            basePoint = 3000;
-	            break;
-	          case 8:
-	          case 9:
-	          case 10:
-	            basePoint = 4000;
-	            break;
-	          case 11:
-	          case 12:
-	            basePoint = 6000;
-	            break;
-	          case 13:
-	            basePoint = 8000;
-	            break;
-	        }
-	      }
-	      else{
-	        tehai.agari.result[i].basePoint = basePoint;
-	      }
-	    }
+      if(tehai.agari.result[i].han.count>0){
+        var basePoint = tehai.agari.result[i].fu.count*Math.pow(2,tehai.agari.result[i].han.count+2);
+        if(basePoint>=2000){
+          if(tehai.agari.result[i].han.count)
+          switch(tehai.agari.result[i].han.count){
+            case 3:
+            case 4:
+            case 5:
+              basePoint = 2000;
+              break;
+            case 6:
+            case 7:
+              basePoint = 3000;
+              break;
+            case 8:
+            case 9:
+            case 10:
+              basePoint = 4000;
+              break;
+            case 11:
+            case 12:
+              basePoint = 6000;
+              break;
+            case 13:
+              basePoint = 8000;
+              break;
+          }
+        }
+        else{
+          tehai.agari.result[i].basePoint = basePoint;
+        }
+      }
     }
   };
   var highestPoint = function(tehai){
-  	var index = 0;
-		for(var i=0;i<tehai.agari.result.length;i++){
-			if(tehai.agari.result[i].basePoint>tehai.agari.result[index].basePoint){
-				index = i;
-			}
-		}
-		tehai.agari.final = tehai.agari.result[index];
+    var index = 0;
+    for(var i=0;i<tehai.agari.result.length;i++){
+      if(tehai.agari.result[i].basePoint>tehai.agari.result[index].basePoint){
+        index = i;
+      }
+    }
+    tehai.agari.final = tehai.agari.result[index];
   }
   var pointCalc = function(basePoint,multiplier){
     return Math.ceil((basePoint*multiplier)/100)*100;
@@ -1296,415 +1372,451 @@ var agariPoint = function(){
 //need login for advanced user auth
 var ioResponse = function(io){
 
-	var online = 0;
+  var online = 0;
 
-	var playerQueue = [];
-
-
-
-	var hostInit = function(){
-		if(playerQueue.length>=4){
-			var players = [];
-			for(var i=0;i<4;i++){
-				players.push(playerQueue.shift());
-				players[i].number = i;
-				players[i].tehai = new tehai();
-			}
-			var gameOperate = hostCreate(players);
-			for(var i=0;i<4;i++){
-				players[i].operate = gameOperate;
-			}
-			for(var i=0;i<4;i++){
-				players[i].emit('full');
-			}
-		}
-	}
-	//岭上牌4张
-	//宝牌10张
-	//起手牌52张
-	//摸牌70张
-	var hostCreate = function(participants){
-		var players = participants;
-		//一局进行状态
-		//-2:结束
-		//-1:等待开始
-		//0-3:等待对应玩家出牌
-		//&4+0/3:等待玩家吃牌
-		//&8+0/3:等待玩家碰/杠牌
-		//后两者可进行复合
-		var state = -1;
-		var round = 0;
-		var lastPlay = {
-			player: -1,
-			hai: -1
-		};
-		var yama = [];	
-		var nextplayer = function(current){
-			return (current+1)%4;
-		}
-		var addHai = function(player, hai){
-			player.tehai.haiIndex.push(hai);
-			player.tehai.hai[Math.floor(hai/4)]++;
-		}
-		var popHai = function(player, hai){
-			player.tehai.haiIndex.pop();
-			player.tehai.hai[Math.floor(hai/4)]--;
-		}
-		var deleteHai = function(player, hai){
-			player.tehai.haiIndex.splice(player.tehai.haiIndex.indexOf(hai),1);
-			player.tehai.hai[Math.floor(hai/4)]--;
-		}
-		var roundInit = function(player){
-			player.tehai.haiIndex = [];
-			player.tehai.hai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-			player.tehai.furo = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-			player.tehai.dora = [0,0,0,0,0,0,0,0,0,0];
-			player.tehai.discard = [[],[],[],[]];
-			player.tehai.agariHai = null;
-			player.tehai.agariFrom = null;
-			player.tehai.chitoi = false;
-			player.tehai.kokushi = false;
-			player.tehai.first = false;
-			player.tehai.last = false;
-			player.tehai.riichi = false;
-			player.tehai.ippatsu = false;
-			player.tehai.rinsyan = false;
-			player.tehai.double = false;
-			player.tehai.chankan = false;
-			player.tehai.nakashi = false;
-		}
-		//摸牌
-		var playerDraw = function(player){
-			var drawHai = yama.shift();
-			lastPlay.player = player.number;
-			lastPlay.hai = drawHai;
-			var result = operationDetect(player, lastPlay, true);
-			addHai(player,drawHai);
-			//发送摸牌数据
-			player.emit('draw',{
-				hai: drawHai,
-				agari: result.agari
-			});
-		}
-		//一局结束(以及整场结束)
-		var roundEnd = function(result){
-			for(var i=0;i<4;i++){
-				players[i].emit('roundEnd',result);
-			}
-			//局数提升
-			round++;
-			if(round<8){
-				state = -1;
-			}
-			else{
-				state = -2;
-				for(var i=0;i<4;i++){
-					players[i].emit('gameEnd');
-				}
-			}
-		}
-		//中断操作查询
-		//TODO:将emit操作移到外面
-		//TODO:result的处理
-		var operationDetect = function(player, lastPlay, isDraw){
-			var result = new operation();
-			addHai(player,lastPlay.Hai);
-			if(!isDraw){
-				//TODO:吃
-				if(player.number===nextplayer(lastPlay.player)){
-					//1位
-					if(true){
-						
-					}
-					//2位
-					if(true){
-						
-					}
-					//3位
-					if(true){
-						
-					}
-				}
-				//碰
-				//TODO:检查是否已经副露
-				if(player.tehai.hai[Math.floor(lastPlay.hai/4)]>=3){
-					result.furo.append({
-						index: Math.floor(lastPlay.hai/4),
-						value: 8+(lastPlay.player-player.number+4)%4
-					});
-				}
-				//明杠
-				//TODO:检查是否已经副露
-				if(player.tehai.hai[Math.floor(lastPlay.hai/4)]===4){
-					result.furo.append({
-						index: Math.floor(lastPlay.hai/4),
-						value: 12+(lastPlay.player-player.number+4)%4
-					});
-				}
-			}
-			else{
-				//暗杠(实际跟明杠一样,只是触发阶段不一样)
-				//TODO:检查是否已经副露
-				if(player.tehai.hai[Math.floor(lastPlay.hai/4)]===4){
-					result.furo.append({
-						index: Math.floor(lastPlay.hai/4),
-						value: 12
-					});
-				}
-				//加杠
-				//TODO:检查是否已经副露
-				if(player.tehai.hai[Math.floor(lastPlay.hai/4)]===4){
-					result.furo.append({
-						index: Math.floor(lastPlay.hai/4),
-						value: 15+(lastPlay.player-player.number+4)%4
-					});
-				}
-				//TODO:立直
-			}
-			//和
-			var test = JSON.parse(JSON.stringify(player.tehai));
-			agariCheck(test);
-			if(test.agari.count){
-				test.agariHai = Math.floor(lastPlay.hai/4);
-				//最后打(摸)牌的玩家相对于当前玩家的位置
-				test.agariFrom = (lastPlay.player-player.number+4)%4;
-				agariPoint(test);
-				if(test.agari.final.basePoint){
-					result.agari = true;
-					player.tehai.agariHai = Math.floor(lastPlay.hai/4);
-					player.tehai.agariFrom = (lastPlay.player-player.number+4)%4;
-					player.emit('hu');
-					state+=16384*Math.pow(2,i);//置等待和牌标记位
-				}
-			}
-			popHai(player,lastPlay);
-			return result;
-		}
-		var playerReady = 0;
-		return function(instruction,param){
-			switch(instruction){
-				case 'ready':
-					if(state===-1&&playerReady<4&&playerReady>=0)playerReady++; 
-					if(playerReady>=4){
-						playerReady = 0;
-						//初始化牌山
-						for(var j=0;j<136;j++){
-							yama[j] = j;
-						}
-						var rand;
-						var tmp;
-						for(var j=0;j<136*5;j++){
-							rand = Math.random()*136;
-							tmp = yama[Math.floor(rand)];
-							yama[Math.floor(rand)] = yama[j%136];
-							yama[j%136] = tmp;
-						}
-						console.log(JSON.stringify(yama));
-						//初始化该局变量
-						for(var i=0;i<4;i++){
-							roundInit(players[i]);
-						}
-						for(var i=0;i<12*4;i++){
-							var drawHai = yama.shift();
-							addHai(players[(round+Math.floor(i/4)%4)%4],drawHai);
-						}
-						for(var i=0;i<4;i++){
-							var drawHai = yama.shift();
-							addHai(players[(round+i)%4],drawHai);
-							players[(round+i)%4].tehai.round = round;
-							players[(round+i)%4].tehai.ji = 27+(4-round%4+i)%4;
-							players[(round+i)%4].tehai.ba = 27+Math.floor(round/4);
-						}
-						for(var i=0;i<4;i++){
-							players[i].emit('start',{
-								tehai: players[i].tehai
-							});
-						}
-						//置状态为开始状态,庄家摸牌
-						state = round%4;
-						playerDraw(players[state]);
-					}
-					break;
-				case 'discard':
-					if(state===this.number){
-						if(this.tehai.haiIndex.indexOf(param)!==-1){
-							//从手牌中移除
-							deleteHai(this,param);
-							//将打牌置入弃牌对象中
-							for(var i=0;i<4;i++){
-								players[(this.number+i)%4].tehai.discard[(4-i)%4].push(param);
-							}
-							//分发打牌数据
-							for(var i=0;i<4;i++){
-								players[i].emit('discard', {
-									discard: players[i].tehai.discard
-								});
-							}
-							//记录打牌
-							lastPlay.player = this.number;
-							lastPlay.hai = param;
-
-							//检查是否有中断操作
-							for(var i=0;i<4;i++){
-								var result = operationDetect(players[i],lastPlay);
-							}
-							
+  var playerQueue = [];
 
 
-							//无事发生
-							if(state>=0&&state<4){
-								if(yama.length>10){
-									//下家摸牌
-									state = nextplayer(state);
-									playerDraw(players[state]);
-								}
-								else{
-									//没牌了
-									roundEnd();
-								}
-							}
-						}
-						else{
-							//牌不存在
-							//error handling. disconnect etc.
-						}
-					}
-					else{
-						//state不对
-						//error handling. disconnect etc.
-					}
-					break;
-				//TODO:统一更换为operation,param为
-				//	type:方法
-				//	furo:副露的值
-				//当state不为0-3时创建队列决定操作优先级
-				//恢复正常时清空队列
-				case 'chi':
-					break;
-				case 'pon':
-					break;
-				case 'kan':
-					break;
-				case 'hu':
-					if(state&16384*Math.pow(2,this.number)){
-						if(this.tehai.haiIndex.length<14){
-							addHai(this,lastPlay.hai);
-						}
-						agariCheck(this.tehai);
-						//理论上成功进到这里应为可以和的牌型
-						if(this.tehai.agari.count){
-							agariPoint(this.tehai);
-							//结算
-							var result = {
-								players: this.number,
-								haiIndex: this.tehai.haiIndex,
-								agariFrom: this.tehai.agariFrom,
-								fu: this.tehai.agari.final.fu,
-								han: this.tehai.agari.final.han,
-								basePoint: this.tehai.agari.final.basePoint
-							};
-							roundEnd({result: result});
-							//中断,开下一局
-							break;
-						}
-						state-=16384*Math.pow(2,this.number);
-					}
-					else{
-						//state不对
-						//error handling. disconnect etc.
-					}
-					break;
-				case 'pass':
-					//玩家放弃操作
-					//取消吃
-					if(state&4*Math.pow(2,this.number)){
-						state-=4*Math.pow(2,this.number);
-					}
-					//取消碰
-					if(state&64*Math.pow(2,this.number)){
-						state-=64*Math.pow(2,this.number);
-					}
-					//取消杠
-					if(state&1024*Math.pow(2,this.number)){
-						state-=1024*Math.pow(2,this.number);
-					}
-					//取消和
-					if(state&16384*Math.pow(2,this.number)){
-						state-=16384*Math.pow(2,this.number);
-					}
-					if(state>=0&&state<4){
-						if(yama.length>10){
-							//下家摸牌
-							state = nextplayer(state);
-							playerDraw(players[state]);
-						}
-						else{
-							roundEnd();
-						}
-					}
-					break;
-				case 'disconnect':
-					break;
-			}
-		}
-	};
 
-	//player:join
-	//server:full
-	//player:ready
-	//server:start(with initial hand)
-	//player:operation
-	//	discard
-	//	opration
-	//		chi
-	//		pon
-	//		kan
-	//		hu
-	//server:response
-	//	draw
-	//	opration
-	//		chi
-	//		pon
-	//		kan
-	//		hu
-	//	roundEnd(with data if someone hu'ed)
-	//	gameEnd
-	io.on('connection', function(socket){
-		online++;
-		console.log(socket.id + ' Log in. Online: ' + online);
+  var hostInit = function(){
+    if(playerQueue.length>=4){
+      var players = [];
+      for(var i=0;i<4;i++){
+        players.push(playerQueue.shift());
+        players[i].number = i;
+        players[i].tehai = new Tehai();
+      }
+      var gameOperate = hostCreate(players);
+      for(var i=0;i<4;i++){
+        players[i].operate = gameOperate;
+      }
+      for(var i=0;i<4;i++){
+        players[i].emit('full');
+      }
+    }
+  }
+  //岭上牌4张
+  //宝牌10张
+  //起手牌52张
+  //摸牌70张
+  var hostCreate = function(participants){
+    var players = participants;
+    //一局进行状态
+    //-2:结束
+    //-1:等待开始
+    //0-3:等待对应玩家出牌
+    //&4+0/3:等待玩家吃牌
+    //&8+0/3:等待玩家碰/杠牌
+    //后两者可进行复合
+    var state = -1;
+    var round = 0;
+    var lastPlay = {
+      player: -1,
+      hai: -1
+    };
+    var yama = [];  
+    var nextplayer = function(current){
+      return (current+1)%4;
+    }
+    var addHai = function(player, hai){
+      player.tehai.haiIndex.push(hai);
+      player.tehai.hai[Math.floor(hai/4)]++;
+      player.tehai.validHai[Math.floor(hai/4)]++;
+    }
+    var popHai = function(player, hai){
+      player.tehai.haiIndex.pop();
+      player.tehai.hai[Math.floor(hai/4)]--;
+      player.tehai.validHai[Math.floor(hai/4)]--;
+    }
+    var deleteHai = function(player, hai){
+      player.tehai.haiIndex.splice(player.tehai.haiIndex.indexOf(hai),1);
+      player.tehai.hai[Math.floor(hai/4)]--;
+      player.tehai.validHai[Math.floor(hai/4)]--;
+    }
+    var roundInit = function(player){
+      player.tehai.haiIndex = [];
+      player.tehai.hai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+      player.tehai.validHai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+      player.tehai.furo = new Furo();
+      player.tehai.dora = [0,0,0,0,0,0,0,0,0,0];
+      player.tehai.discard = [[],[],[],[]];
+      player.tehai.agariHai = null;
+      player.tehai.agariFrom = null;
+      player.tehai.chitoi = false;
+      player.tehai.kokushi = false;
+      player.tehai.first = false;
+      player.tehai.last = false;
+      player.tehai.riichi = false;
+      player.tehai.ippatsu = false;
+      player.tehai.rinsyan = false;
+      player.tehai.double = false;
+      player.tehai.chankan = false;
+      player.tehai.nakashi = false;
+    }
+    //摸牌
+    var playerDraw = function(player){
+      var drawHai = yama.shift();
+      lastPlay.player = player.number;
+      lastPlay.hai = drawHai;
+      var result = operationDetect(player, lastPlay, true);
+      operationSet(player,result);
+      addHai(player,drawHai);
+      //发送摸牌数据
+      //state的变化在打牌之后
+      player.emit('draw',{
+        hai: drawHai,
+        kan: result.kan,
+        agari: result.agari
+      });
+    }
+    //一局结束(以及整场结束)
+    var roundEnd = function(result){
+      for(var i=0;i<4;i++){
+        players[i].emit('roundEnd',result);
+      }
+      //局数提升
+      round++;
+      if(round<8){
+        state = -1;
+      }
+      else{
+        state = -2;
+        for(var i=0;i<4;i++){
+          players[i].emit('gameEnd');
+        }
+      }
+    }
+    //中断操作查询
+    var operationDetect = function(player, lastPlay, isDraw){
+      var result = new Operation();
+      addHai(player,lastPlay.Hai);
+      if(!isDraw){
+        //仅下家可吃,去除字牌
+        if(player.number===nextplayer(lastPlay.player)&&Math.floor(lastPlay.hai/4)<27){
+          //1位
+          if(Math.floor(lastPlay.hai/4)%9<7){
+            if(player.tehai.validHai[Math.floor(lastPlay.hai/4)+1]>0&&player.tehai.validHai[Math.floor(lastPlay.hai/4)+2]>0){
+              result.chi = true;
+            }
+          }
+          //2位
+          if(Math.floor(lastPlay.hai/4)%9<8&&Math.floor(lastPlay.hai/4)%9>0){
+            if(player.tehai.validHai[Math.floor(lastPlay.hai/4)-1]>0&&player.tehai.validHai[Math.floor(lastPlay.hai/4)+1]>0){
+              result.chi = true;
+            }
+          }
+          //3位
+          if(Math.floor(lastPlay.hai/4)%9>1){
+            if(player.tehai.validHai[Math.floor(lastPlay.hai/4)-2]>0&&player.tehai.validHai[Math.floor(lastPlay.hai/4)-1]>0){
+              result.chi = true;
+            }
+          }
+        }
+        //碰
+        //仅在该牌在有效手牌中有3张以上张时才能操作
+        if(player.tehai.validHai[Math.floor(lastPlay.hai/4)]>=3){
+          result.pon = true;
+        }
+        //明杠
+        //仅在该牌在有效手牌中有4张时才能操作
+        if(player.tehai.validHai[Math.floor(lastPlay.hai/4)]===4){
+          result.kan = true;
+        }
+      }
+      else{
+        //暗杠(实际跟明杠一样,只是触发阶段不一样)
+        //仅在该牌在有效手牌中有4张时才能操作
+        if(player.tehai.validHai[Math.floor(lastPlay.hai/4)]===4){
+          //player.tehai.furo.set(Math.floor(lastPlay.hai/4),9);
+          result.kan = true;
+        }
+        //加杠
+        //仅在该牌已有一个碰时才能操作
+        if(player.tehai.furo.exist(Math.floor(lastPlay.hai/4),3)||player.tehai.furo.exist(Math.floor(lastPlay.hai/4),4)||player.tehai.furo.exist(Math.floor(lastPlay.hai/4),5)){
+          //player.tehai.furo.upgrade(Math.floor(lastPlay.hai/4));
+          result.kan = true;
+        }
+        //TODO:立直
+      }
+      //和
+      var test = JSON.parse(JSON.stringify(player.tehai));
+      test.agariFrom = (lastPlay.player-player.number+4)%4;
+      test.agariHai = Math.floor(lastPlay.hai/4);
+      agariCheck(test);
+      if(test.agari.count){
+        //最后打(摸)牌的玩家相对于当前玩家的位置
+        agariPoint(test);
+        if(test.agari.final.basePoint){
+          result.agari = true;
+        }
+      }
+      popHai(player,lastPlay);
+      return result;
+    }
+    var operationSet = function(player, opration, isDraw){
+      //吃
+      if(operation.chi){
+        player.emit('operation','chi');
+        state+=4*Math.pow(2,i);//置等待吃牌标记位
+      }
+      //碰
+      if(operation.pon){
+        player.emit('operation','pon');
+        state+=64*Math.pow(2,i);//置等待碰牌标记位
+      }
+      //杠
+      if(operation.kan){
+        player.emit('operation','kan');
+        if(!isDraw){
+          state+=1024*Math.pow(2,i);//置等待杠牌标记位
+        }
+      }
+      //和
+      if(operation.hu){
+        player.tehai.agariHai = Math.floor(lastPlay.hai/4);
+        player.tehai.agariFrom = (lastPlay.player-player.number+4)%4;
+        player.emit('operation','hu');
+        if(!isDraw){
+          state+=16384*Math.pow(2,i);//置等待和牌标记位
+        }
+      }
+      //立直
+      if(operation.riichi){
+        
+      }
+    }
+    var playerReady = 0;
+    return function(instruction,param){
+      switch(instruction){
+        case 'ready':
+          if(state===-1&&playerReady<4&&playerReady>=0)playerReady++; 
+          if(playerReady>=4){
+            playerReady = 0;
+            //初始化牌山
+            for(var j=0;j<136;j++){
+              yama[j] = j;
+            }
+            var rand;
+            var tmp;
+            for(var j=0;j<136*5;j++){
+              rand = Math.random()*136;
+              tmp = yama[Math.floor(rand)];
+              yama[Math.floor(rand)] = yama[j%136];
+              yama[j%136] = tmp;
+            }
+            console.log(JSON.stringify(yama));
+            //初始化该局变量
+            for(var i=0;i<4;i++){
+              roundInit(players[i]);
+            }
+            for(var i=0;i<12*4;i++){
+              var drawHai = yama.shift();
+              addHai(players[(round+Math.floor(i/4)%4)%4],drawHai);
+            }
+            for(var i=0;i<4;i++){
+              var drawHai = yama.shift();
+              addHai(players[(round+i)%4],drawHai);
+              players[(round+i)%4].tehai.round = round;
+              players[(round+i)%4].tehai.ji = 27+(4-round%4+i)%4;
+              players[(round+i)%4].tehai.ba = 27+Math.floor(round/4);
+            }
+            for(var i=0;i<4;i++){
+              players[i].emit('start',{
+                tehai: players[i].tehai
+              });
+            }
+            //置状态为开始状态,庄家摸牌
+            state = round%4;
+            playerDraw(players[state]);
+          }
+          break;
+        case 'discard':
+          if(state===this.number){
+            if(this.tehai.haiIndex.indexOf(param)!==-1){
+              //TODO: 初始化操作队列
 
-		socket.on('join', function(){
-			var pos = playerQueue.indexOf(socket);
-			if(pos===-1)playerQueue.push(socket);
-			console.log('Current in queue: ' + playerQueue.length);
-			if(playerQueue.length>=4){
-				hostInit();
-			}
-		});
+              //从手牌中移除
+              deleteHai(this,param);
+              //将打牌置入弃牌对象中
+              for(var i=0;i<4;i++){
+                players[(this.number+i)%4].tehai.discard[(4-i)%4].push(param);
+              }
+              //分发打牌数据
+              for(var i=0;i<4;i++){
+                players[i].emit('discard', {
+                  discard: players[i].tehai.discard
+                });
+              }
+              //记录打牌
+              lastPlay.player = this.number;
+              lastPlay.hai = param;
 
-		socket.on('ready', function(){
-			socket.operate('ready');
-		});
-		socket.on('discard', function(hai){
-			console.log('Player ' + socket.number + ' discarded ' + hai);
-			socket.operate('discard',hai);
-		});
-		socket.on('hu', function(){
-			console.log('Player ' + socket.number + ' hu');
-			socket.operate('hu');
-		});
-		socket.on('pass', function(){
-			console.log('Player ' + socket.number + ' pass');
-			socket.operate('pass');
-		});
+              //检查是否有中断操作
+              for(var i=0;i<4;i++){
+                var result = operationDetect(players[i],lastPlay);
+                operationSet(players[i],result);
+              }
+              //检查当前state，如果有操作标志位则结束流程，等待player操作
+              if(state>=0&&state<4){
+                //无事发生直接摸牌
+                if(yama.length>10){
+                  //下家摸牌
+                  state = nextplayer(state);
+                  playerDraw(players[state]);
+                }
+                else{
+                  //没牌了
+                  roundEnd();
+                }
+              }
+            }
+            else{
+              //牌不存在
+              //error handling. disconnect etc.
+            }
+          }
+          else{
+            //state不对
+            //error handling. disconnect etc.
+          }
+          break;
+        //统一更换为operation,param为
+        //  type:方法
+        //  furo:副露的值
+        case 'operation':
+          switch(param.type){
+            //TODO: 所有操作push到操作队列中
+            case 'chi':
+              break;
+            case 'pon':
+              break;
+            case 'kan':
+              break;
+            case 'hu':
+              if(state&16384*Math.pow(2,this.number)){
+                if(this.tehai.haiIndex.length<14){
+                  addHai(this,lastPlay.hai);
+                }
+                agariCheck(this.tehai);
+                //理论上成功进到这里应为可以和的牌型
+                if(this.tehai.agari.count){
+                  agariPoint(this.tehai);
+                  //结算
+                  var result = {
+                    players: this.number,
+                    haiIndex: this.tehai.haiIndex,
+                    agariFrom: this.tehai.agariFrom,
+                    fu: this.tehai.agari.final.fu,
+                    han: this.tehai.agari.final.han,
+                    basePoint: this.tehai.agari.final.basePoint
+                  };
+                  roundEnd({result: result});
+                  //中断,开下一局
+                  break;
+                }
+                //TODO: 一个玩家选择操作之后，取消该玩家的全部标志位
+                state-=16384*Math.pow(2,this.number);
+              }
+              else{
+                //state不对
+                //error handling. disconnect etc.
+              }
+              break;
+          }
+          //TODO: 从操作队列中选择本回合会进行的操作
+          break;
+        case 'pass':
+          //玩家放弃操作
+          //取消吃
+          if(state&4*Math.pow(2,this.number)){
+            state-=4*Math.pow(2,this.number);
+          }
+          //取消碰
+          if(state&64*Math.pow(2,this.number)){
+            state-=64*Math.pow(2,this.number);
+          }
+          //取消杠
+          if(state&1024*Math.pow(2,this.number)){
+            state-=1024*Math.pow(2,this.number);
+          }
+          //取消和
+          if(state&16384*Math.pow(2,this.number)){
+            state-=16384*Math.pow(2,this.number);
+          }
+          //TODO: 从操作队列中选择本回合会进行的操作进行处理
+          if(state>=0&&state<4){
+            if(yama.length>10){
+              //下家摸牌
+              state = nextplayer(state);
+              playerDraw(players[state]);
+            }
+            else{
+              roundEnd();
+            }
+          }
+          break;
+        case 'disconnect':
+          break;
+      }
+    }
+  };
 
-		socket.on('disconnect', function(){
-			online--;
-			var pos = playerQueue.indexOf(socket);
-			if(pos!==-1)playerQueue.splice(pos,1);
-			console.log(socket.id + ' Log out. Online: ' + online);
-		});
-	});
+  //player:join
+  //server:full
+  //player:ready
+  //server:start(with initial hand)
+  //player:operation
+  //  discard
+  //  opration
+  //    chi
+  //    pon
+  //    kan
+  //    hu
+  //server:response
+  //  draw
+  //  opration
+  //    chi
+  //    pon
+  //    kan
+  //    hu
+  //  roundEnd(with data if someone hu'ed)
+  //  gameEnd
+  io.on('connection', function(socket){
+    online++;
+    console.log(socket.id + ' Log in. Online: ' + online);
+
+    socket.on('join', function(){
+      var pos = playerQueue.indexOf(socket);
+      if(pos===-1)playerQueue.push(socket);
+      console.log('Current in queue: ' + playerQueue.length);
+      if(playerQueue.length>=4){
+        hostInit();
+      }
+    });
+
+    socket.on('ready', function(){
+      socket.operate('ready');
+    });
+    socket.on('discard', function(hai){
+      console.log('Player ' + socket.number + ' discarded ' + hai);
+      socket.operate('discard',hai);
+    });
+    socket.on('hu', function(){
+      console.log('Player ' + socket.number + ' hu');
+      socket.operate('hu');
+    });
+    socket.on('pass', function(){
+      console.log('Player ' + socket.number + ' pass');
+      socket.operate('pass');
+    });
+
+    socket.on('disconnect', function(){
+      online--;
+      var pos = playerQueue.indexOf(socket);
+      if(pos!==-1)playerQueue.splice(pos,1);
+      console.log(socket.id + ' Log out. Online: ' + online);
+    });
+  });
 }
 
 
