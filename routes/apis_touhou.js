@@ -1405,8 +1405,11 @@ var ioResponse = function(io){
     //-2:结束
     //-1:等待开始
     //0-3:等待对应玩家出牌
-    //&4+0/3:等待玩家吃牌
-    //&8+0/3:等待玩家碰/杠牌
+    //bit 3-6(4-63)             :等待玩家吃牌
+    //bit 7-10(64-1023)         :等待玩家碰牌
+    //bit 11-14(1024-16383)     :等待玩家杠牌
+    //bit 15-18(16384-262143)   :等待玩家和牌
+    //bit 19-22(262144-4194903) :等待玩家立直
     //后两者可进行复合
     var state = -1;
     var round = 0;
@@ -1414,6 +1417,7 @@ var ioResponse = function(io){
       player: -1,
       hai: -1
     };
+    //TODO: 牌山对象
     var yama = [];  
     var nextplayer = function(current){
       return (current+1)%4;
