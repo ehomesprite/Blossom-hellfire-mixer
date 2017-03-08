@@ -108,6 +108,48 @@ function Operation(){
   this.agari = false;
   this.riichi = false;
 }
+//跟Operation其实没有什么关系
+//在player弃牌时对可能共同触发的副露和和牌进行处理
+//填入的内容
+//player: Numeber
+//operation: String
+//data: Object{
+//  index: Number,
+//  value: Number  
+//}
+//or 和牌结果
+function OperationQueue(){
+  this.queue = [[],[],[]];
+}
+OperationQueue.prototype.reset = function(){
+  this.quque = [[],[],[]];
+}
+OperationQueue.prototype.push = function(param){
+  if(param.operation==='chi'){
+    this.quque[2].push(param);
+  }
+  if(param.operation==='pon'||param.operation==='kan'){
+    this.quque[1].push(param);
+  }
+  if(param.operation==='hu'){
+    this.quque[0].push(param);
+  }
+}
+OperationQueue.prototype.result = function(){
+  if(this.queue[0].length){
+    return this.queue[0];
+  }
+  else if(this.queue[1].length){
+    return this.queue[1];
+  }
+  else if(this.queue[2].length){
+    return this.queue[2];
+  }
+  else{
+    return null;
+  }
+}
+
 
 var tehaiTypes = 34;
 
@@ -1419,6 +1461,7 @@ var ioResponse = function(io){
     };
     //TODO: 牌山对象
     var yama = [];  
+    var operationQueue = new OperationQueue();
     var nextplayer = function(current){
       return (current+1)%4;
     }
@@ -1637,8 +1680,8 @@ var ioResponse = function(io){
         case 'discard':
           if(state===this.number){
             if(this.tehai.haiIndex.indexOf(param)!==-1){
-              //TODO: 初始化操作队列
-
+              //初始化操作队列
+              operationQueue.reset();
               //从手牌中移除
               deleteHai(this,param);
               //将打牌置入弃牌对象中
@@ -1686,17 +1729,54 @@ var ioResponse = function(io){
           break;
         //统一更换为operation,param为
         //  type:方法
-        //  furo:副露的值
+        //  index:副露的牌
+        //  value:副露的值
         case 'operation':
           switch(param.type){
-            //TODO: 所有操作push到操作队列中
+            //所有操作push到操作队列中
+            //TODO: 做可用判断
             case 'chi':
+              if(state&4*Math.pow(2,this.number)){
+                //将结算放入队列
+                operationQueue.push({
+                  'operation': 'chi',
+                  'player': this.number,
+                  'data': {
+                    'index': param.index,
+                    'value': param.value
+                  }
+                });
+              }
               break;
             case 'pon':
+              if(state&64*Math.pow(2,this.number)){
+                //将结算放入队列
+                operationQueue.push({
+                  'operation': 'pon',
+                  'player': this.number,
+                  'data': {
+                    'index': param.index,
+                    'value': 2+(lastPlay.player+4-this.number)%4
+                  }
+                });
+              }
               break;
             case 'kan':
+              //TODO:杠的形态判断
+              if(state&1024*Math.pow(2,this.number)){
+                //将结算放入队列
+                operationQueue.push({
+                  'operation': 'kan',
+                  'player': this.number,
+                  'data': {
+                    'index': param.index,
+                    'value': param.value
+                  }
+                });
+              }
               break;
             case 'hu':
+              //和牌不需要额外数据
               if(state&16384*Math.pow(2,this.number)){
                 if(this.tehai.haiIndex.length<14){
                   addHai(this,lastPlay.hai);
@@ -1705,58 +1785,66 @@ var ioResponse = function(io){
                 //理论上成功进到这里应为可以和的牌型
                 if(this.tehai.agari.count){
                   agariPoint(this.tehai);
-                  //结算
+                  //计算和牌结果
                   var result = {
-                    players: this.number,
                     haiIndex: this.tehai.haiIndex,
                     agariFrom: this.tehai.agariFrom,
+                    agariHai: this.tehai.agariHai,
                     fu: this.tehai.agari.final.fu,
                     han: this.tehai.agari.final.han,
                     basePoint: this.tehai.agari.final.basePoint
                   };
-                  roundEnd({result: result});
-                  //中断,开下一局
+                  //将结算放入队列
+                  operationQueue.push({
+                    operation: 'hu',
+                    player: this.number,
+                    data: result
+                  });
                   break;
                 }
-                //TODO: 一个玩家选择操作之后，取消该玩家的全部标志位
-                state-=16384*Math.pow(2,this.number);
               }
               else{
                 //state不对
                 //error handling. disconnect etc.
               }
+            case 'pass':
+              //玩家放弃操作时直接进入此部分
+              //取消该玩家的全部标志位
+              //取消吃
+              if(state&4*Math.pow(2,this.number)){
+                state-=4*Math.pow(2,this.number);
+              }
+              //取消碰
+              if(state&64*Math.pow(2,this.number)){
+                state-=64*Math.pow(2,this.number);
+              }
+              //取消杠
+              if(state&1024*Math.pow(2,this.number)){
+                state-=1024*Math.pow(2,this.number);
+              }
+              //取消和
+              if(state&16384*Math.pow(2,this.number)){
+                state-=16384*Math.pow(2,this.number);
+              }
+              if(state>=0&&state<4){
+                //没有更多的操作需要处理
+                //TODO: 从操作队列中选择本回合会进行的操作进行处理
+                if(operationQueue.result()!==null){
+                  var result = operationQueue.result();
+                }
+                //可以摸牌了
+                //还有牌
+                else if(yama.length>10){
+                  //下家摸牌
+                  state = nextplayer(state);
+                  playerDraw(players[state]);
+                }
+                //流局
+                else{
+                  roundEnd();
+                }
+              }
               break;
-          }
-          //TODO: 从操作队列中选择本回合会进行的操作
-          break;
-        case 'pass':
-          //玩家放弃操作
-          //取消吃
-          if(state&4*Math.pow(2,this.number)){
-            state-=4*Math.pow(2,this.number);
-          }
-          //取消碰
-          if(state&64*Math.pow(2,this.number)){
-            state-=64*Math.pow(2,this.number);
-          }
-          //取消杠
-          if(state&1024*Math.pow(2,this.number)){
-            state-=1024*Math.pow(2,this.number);
-          }
-          //取消和
-          if(state&16384*Math.pow(2,this.number)){
-            state-=16384*Math.pow(2,this.number);
-          }
-          //TODO: 从操作队列中选择本回合会进行的操作进行处理
-          if(state>=0&&state<4){
-            if(yama.length>10){
-              //下家摸牌
-              state = nextplayer(state);
-              playerDraw(players[state]);
-            }
-            else{
-              roundEnd();
-            }
           }
           break;
         case 'disconnect':
@@ -1776,6 +1864,7 @@ var ioResponse = function(io){
   //    pon
   //    kan
   //    hu
+  //    pass
   //server:response
   //  draw
   //  opration
