@@ -17,6 +17,34 @@ var crypto = require('crypto');
 //10:加杠下家
 //11:加杠对家
 //12:加杠上家
+
+function Yama(){
+  this.data = [];
+}
+Yama.prototype.init = function(){
+  for(var j=0;j<136;j++){
+    this.data[j] = j;
+  }
+  var rand;
+  var tmp;
+  for(var j=0;j<136*5;j++){
+    rand = Math.random()*136;
+    tmp = this.data[Math.floor(rand)];
+    this.data[Math.floor(rand)] = this.data[j%136];
+    this.data[j%136] = tmp;
+  }
+}
+Yama.prototype.drawHead = function(){
+  return this.data.shift();
+}
+//TODO:岭上摸完/在其他地方处理四杠流局
+Yama.prototype.drawTail = function(){
+  return this.data.pop();
+}
+Yama.prototype.getLength = function(){
+  return this.data.length;
+}
+
 function Furo(){
   this.data = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]];
 }
@@ -390,7 +418,7 @@ var agariCheck = function(){
             }
           }
           //七对判定,因为取雀头导致重复放在外面
-          //为全部识别出的牌型添加七对标记
+          //添加新的七对牌型，七对牌型在算番时只计算与七对复合的番种
           var chitoi = chitoiCheck(tehai)
           if(chitoi.count>0){
             tehai.agari.count++;
@@ -1459,8 +1487,7 @@ var ioResponse = function(io){
       player: -1,
       hai: -1
     };
-    //TODO: 牌山对象
-    var yama = [];  
+    var yama = new Yama();  
     var operationQueue = new OperationQueue();
     var nextplayer = function(current){
       return (current+1)%4;
@@ -1501,8 +1528,16 @@ var ioResponse = function(io){
       player.tehai.nakashi = false;
     }
     //摸牌
-    var playerDraw = function(player){
-      var drawHai = yama.shift();
+    var playerDraw = function(player,type){
+      var drawHai = null;
+      if(type==='normal'){
+        drawHai = yama.drawHead();
+      }
+      if(type==='kan'){
+        drawHai = yama.drawTail();
+      }
+      if(type==='empty'){
+      }
       lastPlay.player = player.number;
       lastPlay.hai = drawHai;
       var result = operationDetect(player, lastPlay, true);
@@ -1640,28 +1675,18 @@ var ioResponse = function(io){
           if(playerReady>=4){
             playerReady = 0;
             //初始化牌山
-            for(var j=0;j<136;j++){
-              yama[j] = j;
-            }
-            var rand;
-            var tmp;
-            for(var j=0;j<136*5;j++){
-              rand = Math.random()*136;
-              tmp = yama[Math.floor(rand)];
-              yama[Math.floor(rand)] = yama[j%136];
-              yama[j%136] = tmp;
-            }
+            yama.init();
             console.log(JSON.stringify(yama));
             //初始化该局变量
             for(var i=0;i<4;i++){
               roundInit(players[i]);
             }
             for(var i=0;i<12*4;i++){
-              var drawHai = yama.shift();
+              var drawHai = yama.drawHead();
               addHai(players[(round+Math.floor(i/4)%4)%4],drawHai);
             }
             for(var i=0;i<4;i++){
-              var drawHai = yama.shift();
+              var drawHai = yama.drawHead();
               addHai(players[(round+i)%4],drawHai);
               players[(round+i)%4].tehai.round = round;
               players[(round+i)%4].tehai.ji = 27+(4-round%4+i)%4;
@@ -1674,7 +1699,7 @@ var ioResponse = function(io){
             }
             //置状态为开始状态,庄家摸牌
             state = round%4;
-            playerDraw(players[state]);
+            playerDraw(players[state],'normal');
           }
           break;
         case 'discard':
@@ -1706,10 +1731,10 @@ var ioResponse = function(io){
               //检查当前state，如果有操作标志位则结束流程，等待player操作
               if(state>=0&&state<4){
                 //无事发生直接摸牌
-                if(yama.length>10){
+                if(yama.getLength()>10){
                   //下家摸牌
                   state = nextplayer(state);
-                  playerDraw(players[state]);
+                  playerDraw(players[state],'normal');
                 }
                 else{
                   //没牌了
@@ -1762,17 +1787,42 @@ var ioResponse = function(io){
               }
               break;
             case 'kan':
-              //TODO:杠的形态判断
               if(state&1024*Math.pow(2,this.number)){
                 //将结算放入队列
-                operationQueue.push({
-                  'operation': 'kan',
-                  'player': this.number,
-                  'data': {
-                    'index': param.index,
-                    'value': param.value
-                  }
-                });
+                if(this.tehai.validHai[index]===3){
+                  //明杠
+                  operationQueue.push({
+                    'operation': 'kan',
+                    'player': this.number,
+                    'data': {
+                      'index': param.index,
+                      'value': 5+(lastPlay.player+4-this.number)%4
+                    }
+                  });
+                }
+                else if(this.tehai.validHai[index]===4){
+                  //暗杠
+                  operationQueue.push({
+                    'operation': 'kan',
+                    'player': this.number,
+                    'data': {
+                      'index': param.index,
+                      'value': 9
+                    }
+                  });
+                }
+                else{
+                  //余下的情况为加杠（已有一个碰的情况）
+                  //操作值定义为固定10，处理时进行加杠升级操作
+                  operationQueue.push({
+                    'operation': 'kan',
+                    'player': this.number,
+                    'data': {
+                      'index': param.index,
+                      'value': 10
+                    }
+                  });
+                }
               }
               break;
             case 'hu':
@@ -1787,6 +1837,7 @@ var ioResponse = function(io){
                   agariPoint(this.tehai);
                   //计算和牌结果
                   var result = {
+                    player: this.number,
                     haiIndex: this.tehai.haiIndex,
                     agariFrom: this.tehai.agariFrom,
                     agariHai: this.tehai.agariHai,
@@ -1797,7 +1848,6 @@ var ioResponse = function(io){
                   //将结算放入队列
                   operationQueue.push({
                     operation: 'hu',
-                    player: this.number,
                     data: result
                   });
                   break;
@@ -1827,17 +1877,73 @@ var ioResponse = function(io){
                 state-=16384*Math.pow(2,this.number);
               }
               if(state>=0&&state<4){
-                //没有更多的操作需要处理
-                //TODO: 从操作队列中选择本回合会进行的操作进行处理
+                //没有更多的操作需要等待响应
+                //从操作队列中选择本回合会进行的操作进行处理
                 if(operationQueue.result()!==null){
                   var result = operationQueue.result();
+                  switch(result.operation){
+                    case 'chi':
+                      if(result.data.value===0){
+                        players[result.player].tehai.validHai[result.data.index+1]--;
+                        players[result.player].tehai.validHai[result.data.index+2]--;
+                        players[result.player].tehai.furo.set(result.data.index,result.data.value);
+                      }
+                      if(result.data.value===1){
+                        players[result.player].tehai.validHai[result.data.index-1]--;
+                        players[result.player].tehai.validHai[result.data.index+1]--;
+                        players[result.player].tehai.furo.set(result.data.index,result.data.value);
+                      }
+                      if(result.data.value===2){
+                        players[result.player].tehai.validHai[result.data.index-2]--;
+                        players[result.player].tehai.validHai[result.data.index-1]--;
+                        players[result.player].tehai.furo.set(result.data.index,result.data.value);
+                      }
+                      //空摸牌，置state
+                      state = result.player;
+                      playerDraw(result.player,'empty');
+                      break;
+                    case 'pon':
+                      players[result.player].tehai.validHai[result.data.index]-=2;
+                      players[result.player].tehai.furo.set(result.data.index,result.data.value);
+                      //空摸牌，置state
+                      state = result.player;
+                      playerDraw(result.player,'empty');
+                      break;
+                    case 'kan':
+                      //明杠
+                      if(result.data.value<9){
+                        players[result.player].tehai.validHai[result.data.index]-=3;
+                        players[result.player].tehai.furo.set(result.data.index,result.data.value);
+                      }
+                      //暗杠
+                      if(result.data.value===9){
+                        players[result.player].tehai.validHai[result.data.index]-=4;
+                        players[result.player].tehai.furo.set(result.data.index,result.data.value);
+                      }
+                      //加杠
+                      if(result.data.value>9){
+                        players[result.player].tehai.validHai[result.data.index]--;
+                        players[result.player].tehai.furo.set(result.data.index,result.data.value);
+                      }
+                      //摸岭上牌，置state
+                      state = result.player;
+                      playerDraw(result.player,'kan');
+                      break;
+                    case 'hu':
+                      //TODO: 计算分数
+                      
+                      for(var i=0;i<players.length;i++){
+                        players[i].emit(roundEnd,result.data);
+                      }
+                      break;
+                  }
                 }
                 //可以摸牌了
                 //还有牌
-                else if(yama.length>10){
+                else if(yama.getLength()>10){
                   //下家摸牌
                   state = nextplayer(state);
-                  playerDraw(players[state]);
+                  playerDraw(players[state],'normal');
                 }
                 //流局
                 else{
