@@ -1923,7 +1923,7 @@ var ioResponse = function(io){
                       //加杠
                       if(result.data.value>9){
                         players[result.player].tehai.validHai[result.data.index]--;
-                        players[result.player].tehai.furo.set(result.data.index,result.data.value);
+                        players[result.player].tehai.furo.upgrade(result.data.index);
                       }
                       //摸岭上牌，置state
                       state = result.player;
@@ -1931,7 +1931,7 @@ var ioResponse = function(io){
                       break;
                     case 'hu':
                       //TODO: 计算分数
-                      
+
                       for(var i=0;i<players.length;i++){
                         players[i].emit(roundEnd,result.data);
                       }
