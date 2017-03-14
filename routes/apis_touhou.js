@@ -1470,6 +1470,8 @@ var ioResponse = function(io){
   //起手牌52张
   //摸牌70张
   var hostCreate = function(participants){
+    //TODO: players对象
+    //包含player获取，nextplayer
     var players = participants;
     //一局进行状态
     //-2:结束
@@ -1838,6 +1840,7 @@ var ioResponse = function(io){
                   //计算和牌结果
                   var result = {
                     player: this.number,
+                    oya: this.tehai.ji-27;
                     haiIndex: this.tehai.haiIndex,
                     agariFrom: this.tehai.agariFrom,
                     agariHai: this.tehai.agariHai,
@@ -1930,8 +1933,85 @@ var ioResponse = function(io){
                       playerDraw(result.player,'kan');
                       break;
                     case 'hu':
-                      //TODO: 计算分数
-
+                      // var result = {
+                      //   player: this.number,
+                      //   oya: this.tehai.ji-27;
+                      //   haiIndex: this.tehai.haiIndex,
+                      //   agariFrom: this.tehai.agariFrom,
+                      //   agariHai: this.tehai.agariHai,
+                      //   fu: this.tehai.agari.final.fu,
+                      //   han: this.tehai.agari.final.han,
+                      //   basePoint: this.tehai.agari.final.basePoint
+                      // };
+                      for(var i=0;i<result.data.length;i++){
+                        //TODO: 考虑重做tehai中分数表示
+                        //在结算时只结算每个人各自的分数
+                        //开局时或结算完成后玩家分数交换数据更新
+                        if(result.data[i].oya===0){
+                          if(result.data[i].agariFrom===0){
+                            players[result.data[i].player].tehai.point[0] += result.data[i].basePoint*6;
+                            players[result.data[i].player].tehai.point[1] -= result.data[i].basePoint*2;
+                            players[result.data[i].player].tehai.point[2] -= result.data[i].basePoint*2;
+                            players[result.data[i].player].tehai.point[3] -= result.data[i].basePoint*2;
+                            players[(result.data[i].player+1)%4].tehai.point[0] -= result.data[i].basePoint*2;
+                            players[(result.data[i].player+1)%4].tehai.point[1] -= result.data[i].basePoint*2;
+                            players[(result.data[i].player+1)%4].tehai.point[2] -= result.data[i].basePoint*2;
+                            players[(result.data[i].player+1)%4].tehai.point[3] += result.data[i].basePoint*6;
+                            players[(result.data[i].player+2)%4].tehai.point[0] -= result.data[i].basePoint*2;
+                            players[(result.data[i].player+2)%4].tehai.point[1] -= result.data[i].basePoint*2;
+                            players[(result.data[i].player+2)%4].tehai.point[2] += result.data[i].basePoint*6;
+                            players[(result.data[i].player+2)%4].tehai.point[3] -= result.data[i].basePoint*2;
+                            players[(result.data[i].player+3)%4].tehai.point[0] -= result.data[i].basePoint*2;
+                            players[(result.data[i].player+3)%4].tehai.point[1] += result.data[i].basePoint*6;
+                            players[(result.data[i].player+3)%4].tehai.point[2] -= result.data[i].basePoint*2;
+                            players[(result.data[i].player+3)%4].tehai.point[3] -= result.data[i].basePoint*2;
+                          }
+                          else{
+                            players[result.data[i].player].tehai.point[0] += result.data[i].basePoint*6;
+                            players[result.data[i].player].tehai.point[result.data[i].agariFrom] -= result.data[i].basePoint*6;
+                            players[(result.data[i].player+1)%4].tehai.point[3] += result.data[i].basePoint*6;
+                            players[(result.data[i].player+1)%4].tehai.point[(result.data[i].agariFrom+3)%4] -= result.data[i].basePoint*6;
+                            players[(result.data[i].player+2)%4].tehai.point[2] += result.data[i].basePoint*6;
+                            players[(result.data[i].player+2)%4].tehai.point[(result.data[i].agariFrom+2)%4] -= result.data[i].basePoint*6;
+                            players[(result.data[i].player+3)%4].tehai.point[1] += result.data[i].basePoint*6;
+                            players[(result.data[i].player+3)%4].tehai.point[(result.data[i].agariFrom+1)%4] -= result.data[i].basePoint*6;
+                          }
+                        }
+                        else{
+                          if(result.data[i].agariFrom===0){
+                            players[result.data[i].player].tehai.point[0] += result.data[i].basePoint*4;
+                            players[result.data[i].player].tehai.point[1] -= result.data[i].basePoint*1;
+                            players[result.data[i].player].tehai.point[2] -= result.data[i].basePoint*1;
+                            players[result.data[i].player].tehai.point[3] -= result.data[i].basePoint*1;
+                            players[result.data[i].player].tehai.point[4-result.data[i].oya] -= result.data[i].basePoint*1;
+                            players[(result.data[i].player+1)%4].tehai.point[0] -= result.data[i].basePoint*1;
+                            players[(result.data[i].player+1)%4].tehai.point[1] -= result.data[i].basePoint*1;
+                            players[(result.data[i].player+1)%4].tehai.point[2] -= result.data[i].basePoint*1;
+                            players[(result.data[i].player+1)%4].tehai.point[3] += result.data[i].basePoint*4;
+                            players[(result.data[i].player+1)%4].tehai.point[(4-result.data[i].oya+3)%4] -= result.data[i].basePoint*1;
+                            players[(result.data[i].player+2)%4].tehai.point[0] -= result.data[i].basePoint*1;
+                            players[(result.data[i].player+2)%4].tehai.point[1] -= result.data[i].basePoint*1;
+                            players[(result.data[i].player+2)%4].tehai.point[2] += result.data[i].basePoint*4;
+                            players[(result.data[i].player+2)%4].tehai.point[3] -= result.data[i].basePoint*1;
+                            players[(result.data[i].player+2)%4].tehai.point[(4-result.data[i].oya+2)%4] -= result.data[i].basePoint*1;
+                            players[(result.data[i].player+3)%4].tehai.point[0] -= result.data[i].basePoint*1;
+                            players[(result.data[i].player+3)%4].tehai.point[1] += result.data[i].basePoint*4;
+                            players[(result.data[i].player+3)%4].tehai.point[2] -= result.data[i].basePoint*1;
+                            players[(result.data[i].player+3)%4].tehai.point[3] -= result.data[i].basePoint*1;
+                            players[(result.data[i].player+3)%4].tehai.point[(4-result.data[i].oya+1)%4] -= result.data[i].basePoint*1;
+                          }
+                          else{
+                            players[result.data[i].player].tehai.point[0] += result.data[i].basePoint*4;
+                            players[result.data[i].player].tehai.point[result.data[i].agariFrom] -= result.data[i].basePoint*4;
+                            players[(result.data[i].player+1)%4].tehai.point[3] += result.data[i].basePoint*4;
+                            players[(result.data[i].player+1)%4].tehai.point[(result.data[i].agariFrom+3)%4] -= result.data[i].basePoint*4;
+                            players[(result.data[i].player+2)%4].tehai.point[2] += result.data[i].basePoint*4;
+                            players[(result.data[i].player+2)%4].tehai.point[(result.data[i].agariFrom+2)%4] -= result.data[i].basePoint*4;
+                            players[(result.data[i].player+3)%4].tehai.point[1] += result.data[i].basePoint*4;
+                            players[(result.data[i].player+3)%4].tehai.point[(result.data[i].agariFrom+1)%4] -= result.data[i].basePoint*4;
+                          }
+                        }
+                      }
                       for(var i=0;i<players.length;i++){
                         players[i].emit(roundEnd,result.data);
                       }
