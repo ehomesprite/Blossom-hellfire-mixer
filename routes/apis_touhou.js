@@ -150,7 +150,7 @@ function OperationQueue(){
   this.queue = [[],[],[]];
 }
 OperationQueue.prototype.reset = function(){
-  this.quque = [[],[],[]];
+  this.queue = [[],[],[]];
 }
 OperationQueue.prototype.push = function(param){
   if(param.operation==='chi'){
@@ -1470,8 +1470,6 @@ var ioResponse = function(io){
   //起手牌52张
   //摸牌70张
   var hostCreate = function(participants){
-    //TODO: players对象
-    //包含player获取，nextplayer
     var players = participants;
     //一局进行状态
     //-2:结束
@@ -1491,8 +1489,9 @@ var ioResponse = function(io){
     };
     var yama = new Yama();  
     var operationQueue = new OperationQueue();
-    var nextplayer = function(current){
-      return (current+1)%4;
+    var nextplayer = function(current,pos){
+      var shift = pos||1;
+      return (current+shift)%4;
     }
     var addHai = function(player, hai){
       player.tehai.haiIndex.push(hai);
@@ -1550,7 +1549,8 @@ var ioResponse = function(io){
       player.emit('draw',{
         hai: drawHai,
         kan: result.kan,
-        agari: result.agari
+        agari: result.agari,
+        riichi: result.riichi
       });
     }
     //一局结束(以及整场结束)
@@ -1621,6 +1621,7 @@ var ioResponse = function(io){
           result.kan = true;
         }
         //TODO:立直
+        //TODO: 调整和牌判定在没胡牌时返回向听数，用以进行立直判断
       }
       //和
       var test = JSON.parse(JSON.stringify(player.tehai));
