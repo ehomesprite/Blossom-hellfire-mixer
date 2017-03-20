@@ -1886,18 +1886,22 @@ var ioResponse = function(io){
                 if(operationQueue.result()!==null){
                   var result = operationQueue.result();
                   switch(result.operation){
+                    //把副露牌加入自己的牌中
                     case 'chi':
                       if(result.data.value===0){
+                        players[result.player].tehai.hai[result.data.index]++;
                         players[result.player].tehai.validHai[result.data.index+1]--;
                         players[result.player].tehai.validHai[result.data.index+2]--;
                         players[result.player].tehai.furo.set(result.data.index,result.data.value);
                       }
                       if(result.data.value===1){
+                        players[result.player].tehai.hai[result.data.index]++;
                         players[result.player].tehai.validHai[result.data.index-1]--;
                         players[result.player].tehai.validHai[result.data.index+1]--;
                         players[result.player].tehai.furo.set(result.data.index,result.data.value);
                       }
                       if(result.data.value===2){
+                        players[result.player].tehai.hai[result.data.index]++;
                         players[result.player].tehai.validHai[result.data.index-2]--;
                         players[result.player].tehai.validHai[result.data.index-1]--;
                         players[result.player].tehai.furo.set(result.data.index,result.data.value);
@@ -1907,6 +1911,7 @@ var ioResponse = function(io){
                       playerDraw(result.player,'empty');
                       break;
                     case 'pon':
+                      players[result.player].tehai.hai[result.data.index]++;
                       players[result.player].tehai.validHai[result.data.index]-=2;
                       players[result.player].tehai.furo.set(result.data.index,result.data.value);
                       //空摸牌，置state
@@ -1921,6 +1926,7 @@ var ioResponse = function(io){
                       }
                       //暗杠
                       if(result.data.value===9){
+                        players[result.player].tehai.hai[result.data.index]--;
                         players[result.player].tehai.validHai[result.data.index]-=4;
                         players[result.player].tehai.furo.set(result.data.index,result.data.value);
                       }
