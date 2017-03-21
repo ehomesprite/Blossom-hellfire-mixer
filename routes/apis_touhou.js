@@ -122,6 +122,7 @@ function Tehai(){
   this.first = false;
   this.last = false;
   this.riichi = false;
+  this.riichiReady = false;
   this.ippatsu = false;
   this.rinsyan = false;
   this.double = false;
@@ -180,6 +181,218 @@ OperationQueue.prototype.result = function(){
 
 
 var tehaiTypes = 34;
+
+
+var syanten = function(){
+  var mentsuRemove = function(tehai,level,state){
+    var syanten = [];
+    //取顺
+    for(var i=0;i<34;i++){
+      if(i%9<7&&i<27){
+        if(tehai.hai[i]>0&&tehai.hai[i+1]>0&&tehai.hai[i+2]>0){
+          if(level!==4){
+            tehai.hai[i]--;
+            tehai.hai[i+1]--;
+            tehai.hai[i+2]--;
+            var ret = mentsuRemove(tehai,level+1);
+            //mod ret with this
+            if(ret.length===0){
+              ret.push({'mentsu': 0,'tatsu': 0});
+            }
+            for(var j=0;j<ret.length;j++){
+              ret[j].mentsu++;
+            }
+            syanten = syanten.concat(ret);
+            tehai.hai[i]++;
+            tehai.hai[i+1]++;
+            tehai.hai[i+2]++;
+            break;
+          }
+          else{
+            var res = {'mentsu': 0,'tatsu': 0};
+            res.mentsu++;
+            syanten.push(res);
+            break;
+          }
+        }
+      }
+    }
+    //取刻
+    for(var i=0;i<34;i++){
+      if(tehai.hai[i]>=3){
+        if(level!==4){
+          tehai.hai[i]--;
+          tehai.hai[i]--;
+          tehai.hai[i]--;
+          var ret = mentsuRemove(tehai,level+1);
+          //mod ret with this
+          if(ret.length===0){
+            ret.push({'mentsu': 0,'tatsu': 0});
+          }
+          for(var j=0;j<ret.length;j++){
+            ret[j].mentsu++;
+          }
+          syanten = syanten.concat(ret);
+          tehai.hai[i]++;
+          tehai.hai[i]++;
+          tehai.hai[i]++;
+          break;
+        }
+        else{
+          var res = {'mentsu': 0,'tatsu': 0};
+          res.mentsu++;
+          syanten.push(res);
+          break;
+        }
+      }
+    }
+    //取AA
+    for(var i=0;i<34;i++){
+      if(tehai.hai[i]>=2){
+        if(level!==4){
+          tehai.hai[i]--;
+          tehai.hai[i]--;
+          var ret = mentsuRemove(tehai,level+1);
+          //mod ret with this
+          if(ret.length===0){
+            ret.push({'mentsu': 0,'tatsu': 0});
+          }
+          for(var j=0;j<ret.length;j++){
+            ret[j].tatsu++;
+          }
+          syanten = syanten.concat(ret);
+          tehai.hai[i]++;
+          tehai.hai[i]++;
+          break;
+        }
+        else{
+          var res = {'mentsu': 0,'tatsu': 0};
+          res.tatsu++;
+          syanten.push(res);
+          break;
+        }
+      }
+    }
+    //取AB
+    for(var i=0;i<34;i++){
+      if(i%9<8&&i<27){
+        if(tehai.hai[i]>0&&tehai.hai[i+1]>0){
+          if(level!==4){
+            tehai.hai[i]--;
+            tehai.hai[i+1]--;
+            var ret = mentsuRemove(tehai,level+1);
+            //mod ret with this
+            if(ret.length===0){
+              ret.push({'mentsu': 0,'tatsu': 0});
+            }
+            for(var j=0;j<ret.length;j++){
+              ret[j].tatsu++;
+            }
+            syanten = syanten.concat(ret);
+            tehai.hai[i]++;
+            tehai.hai[i+1]++;
+            break;
+          }
+          else{
+            var res = {'mentsu': 0,'tatsu': 0};
+            res.tatsu++;
+            syanten.push(res);
+            break;
+          }
+        }
+      }
+    }
+    //取AC
+    for(var i=0;i<34;i++){
+      if(i%9<7&&i<27){
+        if(tehai.hai[i]>0&&tehai.hai[i+2]>0){
+          if(level!==4){
+            tehai.hai[i]--;
+            tehai.hai[i+2]--;
+            var ret = mentsuRemove(tehai,level+1);
+            //mod ret with this
+            if(ret.length===0){
+              ret.push({'mentsu': 0,'tatsu': 0});
+            }
+            for(var j=0;j<ret.length;j++){
+              ret[j].tatsu++;
+            }
+            syanten = syanten.concat(ret);
+            tehai.hai[i]++;
+            tehai.hai[i+2]++;
+            break;
+          }
+          else{
+            var res = {'mentsu': 0,'tatsu': 0};
+            res.tatsu++;
+            syanten.push(res);
+            break;
+          }
+        }
+      }
+    }
+    return syanten;
+  };
+  return function(tehai){
+    var syanten = {};
+    var kokushi = 13;
+    var kokushiPair = 0;
+    for(var i=0;i<34;i++){
+      if(i%9===0||i%9===8||i>=27){
+        if(tehai.hai[i]>0){
+          kokushi--;
+        }
+        if(tehai.hai[i]>1){
+          kokushiPair = 1;
+        }
+      }
+    }
+    kokushi -= kokushiPair;
+    syanten.kokushi = kokushi;
+
+    var chitoi = 6;
+    for(var i=0;i<34;i++){
+      if(tehai.hai[i]>1){
+        chitoi--;
+      }
+    }
+    syanten.chitoi = chitoi;
+
+    var normal = [];
+    for(var i=0;i<34;i++){
+      if(tehai.hai[i]>=2){
+        tehai.hai[i]-=2;
+        var tmp = mentsuRemove(tehai,1);
+        if(tmp.length===0){
+          tmp.push({'mentsu': 0,'tatsu': 0});
+        }
+        debugger;
+        for(var j=0;j<tmp.length;j++){
+          tmp[j].jyan = 1;
+        }
+        normal = normal.concat(tmp);
+        tehai.hai[i]+=2;
+      }
+    }
+    var tmp = mentsuRemove(tehai,1);
+    normal = normal.concat(tmp);
+    normal = normal.map(function(value){
+      if(value.jyan){
+        return 7-value.mentsu*2-(value.tatsu<=4-value.mentsu?value.tatsu:4-value.mentsu);
+      }
+      else{
+        return 8-value.mentsu*2-(value.tatsu<=4-value.mentsu?value.tatsu:4-value.mentsu);
+      }
+    })
+    normal.sort(function(a,b){
+       return a-b;
+    });
+
+    syanten.normal = normal[0];
+
+    return syanten;
+  }
+}();
 
 var agariCheck = function(){
   var chitoiCheck = function(tehai){
@@ -1522,6 +1735,7 @@ var ioResponse = function(io){
       player.tehai.first = false;
       player.tehai.last = false;
       player.tehai.riichi = false;
+      player.tehai.riichiReady = false;
       player.tehai.ippatsu = false;
       player.tehai.rinsyan = false;
       player.tehai.double = false;
@@ -1620,7 +1834,10 @@ var ioResponse = function(io){
           //player.tehai.furo.upgrade(Math.floor(lastPlay.hai/4));
           result.kan = true;
         }
-        //TODO:立直
+        //立直
+        if(syanten(player.tehai)===0){
+          result.riichi = true;
+        }
         //TODO: 调整和牌判定在没胡牌时返回向听数，用以进行立直判断
       }
       //和
@@ -1642,32 +1859,32 @@ var ioResponse = function(io){
       //吃
       if(operation.chi){
         player.emit('operation','chi');
-        state+=4*Math.pow(2,i);//置等待吃牌标记位
+        state+=4*Math.pow(2,player.number);//置等待吃牌标记位
       }
       //碰
       if(operation.pon){
         player.emit('operation','pon');
-        state+=64*Math.pow(2,i);//置等待碰牌标记位
+        state+=64*Math.pow(2,player.number);//置等待碰牌标记位
       }
       //杠
       if(operation.kan){
         player.emit('operation','kan');
-        if(!isDraw){
-          state+=1024*Math.pow(2,i);//置等待杠牌标记位
-        }
+        //if(!isDraw){
+        state+=1024*Math.pow(2,player.number);//置等待杠牌标记位
+        //}
       }
       //和
       if(operation.hu){
         player.tehai.agariHai = Math.floor(lastPlay.hai/4);
         player.tehai.agariFrom = (lastPlay.player-player.number+4)%4;
         player.emit('operation','hu');
-        if(!isDraw){
-          state+=16384*Math.pow(2,i);//置等待和牌标记位
-        }
+        //if(!isDraw){
+        state+=16384*Math.pow(2,player.number);//置等待和牌标记位
+        //}
       }
       //立直
       if(operation.riichi){
-        
+        state+=262144*Math.pow(2,player.number);
       }
     }
     var playerReady = 0;
@@ -1708,6 +1925,8 @@ var ioResponse = function(io){
         case 'discard':
           if(state===this.number){
             if(this.tehai.haiIndex.indexOf(param)!==-1){
+              //TODO: 立直宣言弃牌
+
               //初始化操作队列
               operationQueue.reset();
               //从手牌中移除
@@ -1763,6 +1982,7 @@ var ioResponse = function(io){
           switch(param.type){
             //所有操作push到操作队列中
             //TODO: 做可用判断
+            //TODO: 最终操作移到外面
             case 'chi':
               if(state&4*Math.pow(2,this.number)){
                 //将结算放入队列
@@ -1861,6 +2081,14 @@ var ioResponse = function(io){
                 //state不对
                 //error handling. disconnect etc.
               }
+              break;
+            case 'riichi':
+              //因为立直只会在自摸时触发
+              //故不需要将其置入队列
+              //暗杠和加杠也不需要，但与明杠混合，置入队列也无影响
+              //此处进入立直准备状态，在弃牌后进入实际立直状态，切牌变为立直表示牌
+              this.tehai.riichiReady = true;
+              break;
             case 'pass':
               //玩家放弃操作时直接进入此部分
               //取消该玩家的全部标志位
@@ -1879,6 +2107,10 @@ var ioResponse = function(io){
               //取消和
               if(state&16384*Math.pow(2,this.number)){
                 state-=16384*Math.pow(2,this.number);
+              }
+              //取消立直
+              if(state&262144*Math.pow(2,this.number)){
+                state-=262144*Math.pow(2,this.number);
               }
               if(state>=0&&state<4){
                 //没有更多的操作需要等待响应
