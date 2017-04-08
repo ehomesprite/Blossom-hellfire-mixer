@@ -24,7 +24,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
 // uncomment after placing your favicon in /public
-app.use(favicon(path.join(__dirname, '../static', 'favicon.ico')));
+// app.use(favicon(path.join(__dirname, '../static', 'favicon.ico')));
 app.use(logger('dev'));
 app.use(bodyParser.json({limit: '5mb'}));
 app.use(bodyParser.urlencoded({limit: '5mb', extended: false }));//传图的时候加了limit
@@ -39,8 +39,8 @@ app.use(session({
 }));
 
 
-app.use(stylus.middleware({ 
-  src: __dirname + '../static' 
+app.use(stylus.middleware({
+  src: __dirname + '../static'
 }));
 
 app.use(express.static(path.join(__dirname, '../static')));
@@ -56,8 +56,8 @@ app.use(express.static(path.join(__dirname, '../static')));
 app.use('/', index);
 app.use('/users', users);
 app.use('/apis', function(req, res, next) {
-  next();  
- });  
+  next();
+ });
 //app.use('/apis/blog', apis_blog);
 //app.use('/apis/lolitaur', apis_lolitaur);
 app.use('/apis/snowchat', apis_snowchat.router);

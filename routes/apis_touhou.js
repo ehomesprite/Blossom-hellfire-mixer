@@ -1,6 +1,5 @@
 var express = require('express');
 var router = express.Router();
-var crypto = require('crypto');
 
 //副露的表示由散列单值替换为散列数组值
 //副露标记
@@ -18,6 +17,43 @@ var crypto = require('crypto');
 //11:加杠对家
 //12:加杠上家
 
+function clone(obj) {
+  var copy;
+  // Handle the 3 simple types, and null or undefined
+  if (null === obj || "object" !== typeof obj) return obj;
+  // Handle Date
+  else if (obj instanceof Date) {
+      copy = new Date();
+      copy.setTime(obj.getTime());
+      return copy;
+  }
+  // Handle Array
+  else if (obj instanceof Array) {
+      copy = [];
+      for (var i = 0, len = obj.length; i < len; i++) {
+          copy[i] = clone(obj[i]);
+      }
+      return copy;
+  }
+  // Handle Object
+  else if (obj instanceof Object) {
+    if (obj.constructor !== Object()){
+      copy = new obj.constructor(obj);
+      return copy;
+    }
+    else{
+      copy = {};
+      for (var attr in obj) {
+          if (obj.hasOwnProperty(attr)) copy[attr] = clone(obj[attr]);
+      }
+      return copy;
+    }
+  }
+  else {
+    throw new Error("Unable to copy obj! Its type isn't supported.");
+  }
+}
+
 function Yama(){
   this.data = [];
 }
@@ -33,26 +69,31 @@ Yama.prototype.init = function(){
     this.data[Math.floor(rand)] = this.data[j%136];
     this.data[j%136] = tmp;
   }
-}
+};
 Yama.prototype.drawHead = function(){
   return this.data.shift();
-}
+};
 //TODO:岭上摸完/在其他地方处理四杠流局
 Yama.prototype.drawTail = function(){
   return this.data.pop();
-}
+};
 Yama.prototype.getLength = function(){
   return this.data.length;
-}
+};
 
-function Furo(){
-  this.data = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]];
+function Furo(source){
+  if(source){
+    this.data = clone(source.data);
+  }
+  else{
+    this.data = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]];
+  }
 }
 Furo.prototype.isValid = function(){
   if(this.data.length!==34){
     return false;
   }
-  else{  
+  else{
     for(var i=0;i<this.data.length;i++){
       for(var j=0;j<this.data[i].length;j++){
         if(this.data[i][j]<1||this.data[i][j]>16){
@@ -62,7 +103,7 @@ Furo.prototype.isValid = function(){
     }
   }
   return true;
-}
+};
 Furo.prototype.count = function(){
   var count = 0;
   for(var i=0;i<this.data.length;i++){
@@ -71,26 +112,16 @@ Furo.prototype.count = function(){
     }
   }
   return count;
-}
+};
 Furo.prototype.noFuro = function(hai){
-  if(this.data[hai].length===0){
-    return true;
-  }
-  else{
-    return false;
-  }
-}
+  return this.data[hai].length === 0;
+};
 Furo.prototype.exist = function(hai,type){
-  if(this.data[hai].indexOf(type)!==-1){
-    return true;
-  }
-  else{
-    return false;
-  }
-}
+  return this.data[hai].indexOf(type) !== -1;
+};
 Furo.prototype.set = function(hai,type){
   this.data[hai].push(type);
-}
+};
 //碰→杠
 Furo.prototype.upgrade = function(hai){
   if(this.data[hai].indexOf(3)!==1){
@@ -102,7 +133,7 @@ Furo.prototype.upgrade = function(hai){
   if(this.data[hai].indexOf(5)!==1){
     this.data[this.data[hai].indexOf(5)]+=6;
   }
-}
+};
 
 function Tehai(){
   this.point = [25000,25000,25000,25000];
@@ -128,7 +159,7 @@ function Tehai(){
   this.double = false;
   this.chankan = false;
   this.nakashi = false;
-};
+}
 
 function Operation(){
   this.chi = false;
@@ -144,7 +175,7 @@ function Operation(){
 //operation: String
 //data: Object{
 //  index: Number,
-//  value: Number  
+//  value: Number
 //}
 //or 和牌结果
 function OperationQueue(){
@@ -152,18 +183,18 @@ function OperationQueue(){
 }
 OperationQueue.prototype.reset = function(){
   this.queue = [[],[],[]];
-}
+};
 OperationQueue.prototype.push = function(param){
   if(param.operation==='chi'){
-    this.quque[2].push(param);
+    this.queue[2].push(param);
   }
   if(param.operation==='pon'||param.operation==='kan'){
-    this.quque[1].push(param);
+    this.queue[1].push(param);
   }
   if(param.operation==='hu'){
-    this.quque[0].push(param);
+    this.queue[0].push(param);
   }
-}
+};
 OperationQueue.prototype.result = function(){
   if(this.queue[0].length){
     return this.queue[0];
@@ -177,14 +208,14 @@ OperationQueue.prototype.result = function(){
   else{
     return null;
   }
-}
+};
 
 
 var tehaiTypes = 34;
 
 
 var syanten = function(){
-  var mentsuRemove = function(tehai,level,state){
+  var mentsuRemove = function(tehai,level){
     var syanten = [];
     //取顺
     for(var i=0;i<34;i++){
@@ -366,7 +397,6 @@ var syanten = function(){
         if(tmp.length===0){
           tmp.push({'mentsu': 0,'tatsu': 0});
         }
-        debugger;
         for(var j=0;j<tmp.length;j++){
           tmp[j].jyan = 1;
         }
@@ -383,7 +413,7 @@ var syanten = function(){
       else{
         return 8-value.mentsu*2-(value.tatsu<=4-value.mentsu?value.tatsu:4-value.mentsu);
       }
-    })
+    });
     normal.sort(function(a,b){
        return a-b;
     });
@@ -466,7 +496,7 @@ var agariCheck = function(){
                 tehai.hai[i]--;
                 tehai.hai[i+1]--;
                 tehai.hai[i+2]--;
-                next = mentsuRemove(tehai,level+1);
+                var next = mentsuRemove(tehai,level+1);
                 agari.count+=next.count;
                 for(var k=0;k<next.result.length;k++){
                   //typeof tmp[i] === 'number' ? tmp[i]++ : 1;
@@ -504,7 +534,7 @@ var agariCheck = function(){
       if(tehai.hai[j]>=3){
         if(level!==4){
           tehai.hai[j]-=3;
-          next = mentsuRemove(tehai,level+1,true);
+          var next = mentsuRemove(tehai,level+1,true);
           agari.count+=next.count;
           for(var k=0;k<next.result.length;k++){
             //typeof tmp[i] === 'number' ? tmp[i]++ : 1;
@@ -521,7 +551,7 @@ var agariCheck = function(){
             type: 'normal',
             syon: [],
             ko: []
-          }
+          };
           tmp.syon[tehaiTypes-1] = 0;
           tmp.syon.fill(0,0,tehaiTypes);
           tmp.ko[tehaiTypes-1] = 0;
@@ -536,29 +566,21 @@ var agariCheck = function(){
     //console.log('tehai: '+tehai.hai+' '+'agariCount: '+agari.count+' '+'level: '+level);
     return agari;
   };
-  var tehaiValidator = function(data){
+  var tehaiValidator = function(tehai){
 
     //todo:
     //1:副露的范围
     //2:和牌是杠牌
     //3:根据各家牌判断和牌存不存在
-    var tehai;
-    if(typeof data === 'string'){
-      tehai = JSON.parse(data);
-    }
-    else{
-      tehai = data;
-    }
-
 
 
     //数据基本范围不正确时
     if(tehai.hai.length!==tehaiTypes||!tehai.furo.isValid()||tehai.agari<0||tehai.agari>=tehaiTypes){
-      return;
+      return false;
     }
     //和的牌并不在手牌中时
     if(tehai.hai[tehai.agari]===0){
-      return;
+      return false;
     }
 
     //副露数量不正确时
@@ -571,7 +593,7 @@ var agariCheck = function(){
     }
 
     if(tehai.furoCount>4){
-      return;
+       return false;
     }
 
     //手牌数量不正确时
@@ -587,20 +609,19 @@ var agariCheck = function(){
     }
 
     if(tehai.haiCount!==14){
-      return;
+      return false;
     }
 
-    return tehai;
+    return true;
   };
-  return function (data){
-    var tehai = tehaiValidator(data);
-    if(tehai!==undefined){
+  return function (tehai){
+    tehai.agari = {
+      count: 0,
+      result: []
+    };
+    if(tehaiValidator(tehai)){
       //流满则不判断和牌
       if(!tehai.nakashi){
-        tehai.agari = {
-          count: 0,
-          result: []
-        };
         //振听判定
         //打出过和牌且和牌不是自摸
         if(tehai.discard[0].indexOf(tehai.agariHai)!==-1&&tehai.agariFrom!==0){
@@ -632,7 +653,7 @@ var agariCheck = function(){
           }
           //七对判定,因为取雀头导致重复放在外面
           //添加新的七对牌型，七对牌型在算番时只计算与七对复合的番种
-          var chitoi = chitoiCheck(tehai)
+          var chitoi = chitoiCheck(tehai);
           if(chitoi.count>0){
             tehai.agari.count++;
             tehai.agari.result.push(chitoi.result[0]);
@@ -642,9 +663,6 @@ var agariCheck = function(){
         return tehai;
       }
       //TODO: 流局满贯标记
-    }
-    else{
-      return false;
     }
   };
 }();
@@ -941,7 +959,6 @@ var agariPoint = function(){
         //混清字
         while(true){
           var pattern = [0,0,0,0];
-          var type = 0;
           //magic number idicating the pattern types
           for(var j=0;j<3;j++){
             //magic number indicating the number of mentsu avaliable in a pattern
@@ -975,7 +992,7 @@ var agariPoint = function(){
         continue;
       }
       //其他标准型
-      else if(true){
+      else {
         //立直(双立直)
         if(tehai.riichi){
           if(tehai.double){
@@ -1019,22 +1036,20 @@ var agariPoint = function(){
           han.tanyao = 1;
         }
         //役牌
-        if(true){
-          if(tehai.agari.result[i].ko[31]){
+        if (tehai.agari.result[i].ko[31]) {
             han.yaku_haku = 1;
-          }
-          if(tehai.agari.result[i].ko[32]){
+        }
+        if (tehai.agari.result[i].ko[32]) {
             han.yaku_hatsu = 1;
-          }
-          if(tehai.agari.result[i].ko[33]){
+        }
+        if (tehai.agari.result[i].ko[33]) {
             han.yaku_chun = 1;
-          }
-          if(tehai.agari.result[i].ko[tehai.ji]){
+        }
+        if (tehai.agari.result[i].ko[tehai.ji]) {
             han.yaku_jikaze = 1;
-          }
-          if(tehai.agari.result[i].ko[tehai.ba]){
+        }
+        if (tehai.agari.result[i].ko[tehai.ba]) {
             han.yaku_bakaze = 1;
-          }
         }
         //平和
         if(tehai.agari.result[i].fu.kotsu
@@ -1272,7 +1287,7 @@ var agariPoint = function(){
         while(true){
           var pattern = [0,0,0,0];
           var type = 0;
-          //magic number idicating the pattern types
+          //magic number indicating the pattern types
           for(var j=0;j<3;j++){
             //magic number indicating the number of mentsu avaliable in a pattern
             for(var k=0;k<9;k++){
@@ -1308,93 +1323,87 @@ var agariPoint = function(){
               if(tehai.furoCount===tehai.ankanCount){
                 han.chinitsu = 6;
                 //九莲宝灯
-                if(true){
-                  if(pattern[0]!==0){
-                    type = 0;
-                  }
-                  if(pattern[1]!==0){
-                    type = 1;
-                  }
-                  if(pattern[2]!==0){
-                    type = 2;
-                  }
-                  if(true){
-                    //111 123 456 789 99
-                    if(tehai.agari.result[i].ko[type*9+0]
-                      &&tehai.agari.result[i].syon[type*9+0]
-                      &&tehai.agari.result[i].syon[type*9+3]
-                      &&tehai.agari.result[i].syon[type*9+6]
-                      &&tehai.agari.result[i].jyan===type*9+8){
-                      han.churen = 13;
-                    }
-                    //111 234 456 789 99
-                    if(tehai.agari.result[i].ko[type*9+0]
-                      &&tehai.agari.result[i].syon[type*9+1]
-                      &&tehai.agari.result[i].syon[type*9+3]
-                      &&tehai.agari.result[i].syon[type*9+6]
-                      &&tehai.agari.result[i].jyan===type*9+8){
-                      han.churen = 13;
-                    }
-                    //111 234 567 789 99
-                    if(tehai.agari.result[i].ko[type*9+0]
-                      &&tehai.agari.result[i].syon[type*9+1]
-                      &&tehai.agari.result[i].syon[type*9+4]
-                      &&tehai.agari.result[i].syon[type*9+6]
-                      &&tehai.agari.result[i].jyan===type*9+8){
-                      han.churen = 13;
-                    }
-                    //111 22 345 678 999
-                    if(tehai.agari.result[i].ko[type*9+0]
-                      &&tehai.agari.result[i].ko[type*9+8]
-                      &&tehai.agari.result[i].syon[type*9+2]
-                      &&tehai.agari.result[i].syon[type*9+5]
-                      &&tehai.agari.result[i].jyan===type*9+1){
-                      han.churen = 13;
-                    }
-                    //111 234 55 678 999
-                    if(tehai.agari.result[i].ko[type*9+0]
-                      &&tehai.agari.result[i].ko[type*9+8]
-                      &&tehai.agari.result[i].syon[type*9+1]
-                      &&tehai.agari.result[i].syon[type*9+5]
-                      &&tehai.agari.result[i].jyan===type*9+4){
-                      han.churen = 13;
-                    }
-                    //111 234 567 88 999
-                    if(tehai.agari.result[i].ko[type*9+0]
-                      &&tehai.agari.result[i].ko[type*9+8]
-                      &&tehai.agari.result[i].syon[type*9+1]
-                      &&tehai.agari.result[i].syon[type*9+4]
-                      &&tehai.agari.result[i].jyan===type*9+7){
-                      han.churen = 13;
-                    }
-                    //11 123 345 678 999
-                    if(tehai.agari.result[i].ko[type*9+8]
-                      &&tehai.agari.result[i].syon[type*9+0]
-                      &&tehai.agari.result[i].syon[type*9+2]
-                      &&tehai.agari.result[i].syon[type*9+5]
-                      &&tehai.agari.result[i].jyan===type*9+0){
-                      han.churen = 13;
-                    }
-                    //11 123 456 678 999
-                    if(tehai.agari.result[i].ko[type*9+8]
-                      &&tehai.agari.result[i].syon[type*9+0]
-                      &&tehai.agari.result[i].syon[type*9+3]
-                      &&tehai.agari.result[i].syon[type*9+5]
-                      &&tehai.agari.result[i].jyan===type*9+0){
-                      han.churen = 13;
-                    }
-                    //11 123 456 789 999
-                    if(tehai.agari.result[i].ko[type*9+8]
-                      &&tehai.agari.result[i].syon[type*9+0]
-                      &&tehai.agari.result[i].syon[type*9+3]
-                      &&tehai.agari.result[i].syon[type*9+6]
-                      &&tehai.agari.result[i].jyan===type*9+0){
-                      han.churen = 13;
-                    }
-                  }
+                if(pattern[0]!==0){
+                  type = 0;
                 }
-
-              }
+                if(pattern[1]!==0){
+                  type = 1;
+                }
+                if(pattern[2]!==0){
+                  type = 2;
+                }
+                //111 123 456 789 99
+                if(tehai.agari.result[i].ko[type*9]
+                  &&tehai.agari.result[i].syon[type*9]
+                  &&tehai.agari.result[i].syon[type*9+3]
+                  &&tehai.agari.result[i].syon[type*9+6]
+                  &&tehai.agari.result[i].jyan===type*9+8){
+                  han.churen = 13;
+                }
+                //111 234 456 789 99
+                if(tehai.agari.result[i].ko[type*9]
+                  &&tehai.agari.result[i].syon[type*9+1]
+                  &&tehai.agari.result[i].syon[type*9+3]
+                  &&tehai.agari.result[i].syon[type*9+6]
+                  &&tehai.agari.result[i].jyan===type*9+8){
+                  han.churen = 13;
+                }
+                //111 234 567 789 99
+                if(tehai.agari.result[i].ko[type*9]
+                  &&tehai.agari.result[i].syon[type*9+1]
+                  &&tehai.agari.result[i].syon[type*9+4]
+                  &&tehai.agari.result[i].syon[type*9+6]
+                  &&tehai.agari.result[i].jyan===type*9+8){
+                  han.churen = 13;
+                }
+                //111 22 345 678 999
+                if(tehai.agari.result[i].ko[type*9]
+                  &&tehai.agari.result[i].ko[type*9+8]
+                  &&tehai.agari.result[i].syon[type*9+2]
+                  &&tehai.agari.result[i].syon[type*9+5]
+                  &&tehai.agari.result[i].jyan===type*9+1){
+                  han.churen = 13;
+                }
+                //111 234 55 678 999
+                if(tehai.agari.result[i].ko[type*9]
+                  &&tehai.agari.result[i].ko[type*9+8]
+                  &&tehai.agari.result[i].syon[type*9+1]
+                  &&tehai.agari.result[i].syon[type*9+5]
+                  &&tehai.agari.result[i].jyan===type*9+4){
+                  han.churen = 13;
+                }
+                //111 234 567 88 999
+                if(tehai.agari.result[i].ko[type*9]
+                  &&tehai.agari.result[i].ko[type*9+8]
+                  &&tehai.agari.result[i].syon[type*9+1]
+                  &&tehai.agari.result[i].syon[type*9+4]
+                  &&tehai.agari.result[i].jyan===type*9+7){
+                  han.churen = 13;
+                }
+                //11 123 345 678 999
+                if(tehai.agari.result[i].ko[type*9+8]
+                  &&tehai.agari.result[i].syon[type*9]
+                  &&tehai.agari.result[i].syon[type*9+2]
+                  &&tehai.agari.result[i].syon[type*9+5]
+                  &&tehai.agari.result[i].jyan===type*9){
+                  han.churen = 13;
+                }
+                //11 123 456 678 999
+                if(tehai.agari.result[i].ko[type*9+8]
+                  &&tehai.agari.result[i].syon[type*9]
+                  &&tehai.agari.result[i].syon[type*9+3]
+                  &&tehai.agari.result[i].syon[type*9+5]
+                  &&tehai.agari.result[i].jyan===type*9){
+                  han.churen = 13;
+                }
+                //11 123 456 789 999
+                if(tehai.agari.result[i].ko[type*9+8]
+                  &&tehai.agari.result[i].syon[type*9]
+                  &&tehai.agari.result[i].syon[type*9+3]
+                  &&tehai.agari.result[i].syon[type*9+6]
+                  &&tehai.agari.result[i].jyan===type*9)
+                    han.churen = 13;
+                }
               else{
                 han.chinitsu = 5;
               }
@@ -1488,19 +1497,18 @@ var agariPoint = function(){
       //顺子型,刻子型,七对型,国士型已经互斥
 
       //役满部分,当触发役满时消除非役满番种
-      if(true){
-        if(tehai.agari.result[i].han.kokushi
-          ||tehai.agari.result[i].han.suanko
-          ||tehai.agari.result[i].han.daisangen
-          ||tehai.agari.result[i].han.tsuiso
-          ||tehai.agari.result[i].han.syousushi
-          ||tehai.agari.result[i].han.daisushi
-          ||tehai.agari.result[i].han.ryuiso
-          ||tehai.agari.result[i].han.chinroto
-          ||tehai.agari.result[i].han.sukantsu
-          ||tehai.agari.result[i].han.churen
-          ||tehai.agari.result[i].han.tenhou
-          ||tehai.agari.result[i].han.chihou){
+      if(tehai.agari.result[i].han.kokushi
+        ||tehai.agari.result[i].han.suanko
+        ||tehai.agari.result[i].han.daisangen
+        ||tehai.agari.result[i].han.tsuiso
+        ||tehai.agari.result[i].han.syousushi
+        ||tehai.agari.result[i].han.daisushi
+        ||tehai.agari.result[i].han.ryuiso
+        ||tehai.agari.result[i].han.chinroto
+        ||tehai.agari.result[i].han.sukantsu
+        ||tehai.agari.result[i].han.churen
+        ||tehai.agari.result[i].han.tenhou
+        ||tehai.agari.result[i].han.chihou) {
           tehai.agari.result[i].han.dora = false;
           tehai.agari.result[i].han.riichi = false;
           tehai.agari.result[i].han.ippatsu = false;
@@ -1532,7 +1540,6 @@ var agariPoint = function(){
           tehai.agari.result[i].han.junchantai = false;
           tehai.agari.result[i].han.ryanpei = false;
           tehai.agari.result[i].han.chinitsu = false;
-        }
       }
       //清一色取消混一色
       if(tehai.agari.result[i].han.chinitsu){
@@ -1557,7 +1564,7 @@ var agariPoint = function(){
       //求和
       var hanCount = 0;
       for(var j in tehai.agari.result[i].han){
-        if(tehai.agari.result[i].han[j]){
+        if(tehai.agari.result[i].han[j]&&tehai.agari.result[i].han.hasOwnProperty(j)){
           hanCount+=tehai.agari.result[i].han[j];
         }
       }
@@ -1630,7 +1637,7 @@ var agariPoint = function(){
       }
     }
     tehai.agari.final = tehai.agari.result[index];
-  }
+  };
   var pointCalc = function(basePoint,multiplier){
     return Math.ceil((basePoint*multiplier)/100)*100;
   };
@@ -1677,7 +1684,7 @@ var ioResponse = function(io){
         players[i].emit('full');
       }
     }
-  }
+  };
   //岭上牌4张
   //宝牌10张
   //起手牌52张
@@ -1700,27 +1707,27 @@ var ioResponse = function(io){
       player: -1,
       hai: -1
     };
-    var yama = new Yama();  
+    var yama = new Yama();
     var operationQueue = new OperationQueue();
-    var nextplayer = function(current,pos){
+    var nextPlayer = function(current,pos){
       var shift = pos||1;
       return (current+shift)%4;
-    }
+    };
     var addHai = function(player, hai){
       player.tehai.haiIndex.push(hai);
       player.tehai.hai[Math.floor(hai/4)]++;
       player.tehai.validHai[Math.floor(hai/4)]++;
-    }
+    };
     var popHai = function(player, hai){
       player.tehai.haiIndex.pop();
       player.tehai.hai[Math.floor(hai/4)]--;
       player.tehai.validHai[Math.floor(hai/4)]--;
-    }
+    };
     var deleteHai = function(player, hai){
       player.tehai.haiIndex.splice(player.tehai.haiIndex.indexOf(hai),1);
       player.tehai.hai[Math.floor(hai/4)]--;
       player.tehai.validHai[Math.floor(hai/4)]--;
-    }
+    };
     var roundInit = function(player){
       player.tehai.haiIndex = [];
       player.tehai.hai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
@@ -1741,7 +1748,7 @@ var ioResponse = function(io){
       player.tehai.double = false;
       player.tehai.chankan = false;
       player.tehai.nakashi = false;
-    }
+    };
     //摸牌
     var playerDraw = function(player,type){
       var drawHai = null;
@@ -1766,7 +1773,7 @@ var ioResponse = function(io){
         agari: result.agari,
         riichi: result.riichi
       });
-    }
+    };
     //一局结束(以及整场结束)
     var roundEnd = function(result){
       for(var i=0;i<4;i++){
@@ -1783,14 +1790,14 @@ var ioResponse = function(io){
           players[i].emit('gameEnd');
         }
       }
-    }
+    };
     //中断操作查询
     var operationDetect = function(player, lastPlay, isDraw){
       var result = new Operation();
-      addHai(player,lastPlay.Hai);
+      addHai(player,lastPlay.hai);
       if(!isDraw){
         //仅下家可吃,去除字牌
-        if(player.number===nextplayer(lastPlay.player)&&Math.floor(lastPlay.hai/4)<27){
+        if(player.number===nextPlayer(lastPlay.player)&&Math.floor(lastPlay.hai/4)<27){
           //1位
           if(Math.floor(lastPlay.hai/4)%9<7){
             if(player.tehai.validHai[Math.floor(lastPlay.hai/4)+1]>0&&player.tehai.validHai[Math.floor(lastPlay.hai/4)+2]>0){
@@ -1841,7 +1848,7 @@ var ioResponse = function(io){
         //TODO: 调整和牌判定在没胡牌时返回向听数，用以进行立直判断
       }
       //和
-      var test = JSON.parse(JSON.stringify(player.tehai));
+      var test = clone(player.tehai);
       test.agariFrom = (lastPlay.player-player.number+4)%4;
       test.agariHai = Math.floor(lastPlay.hai/4);
       agariCheck(test);
@@ -1854,8 +1861,8 @@ var ioResponse = function(io){
       }
       popHai(player,lastPlay);
       return result;
-    }
-    var operationSet = function(player, opration, isDraw){
+    };
+    var operationSet = function(player, operation){
       //吃
       if(operation.chi){
         player.emit('operation','chi');
@@ -1869,34 +1876,29 @@ var ioResponse = function(io){
       //杠
       if(operation.kan){
         player.emit('operation','kan');
-        //if(!isDraw){
         state+=1024*Math.pow(2,player.number);//置等待杠牌标记位
-        //}
       }
       //和
-      if(operation.hu){
+      if(operation.agari){
         player.tehai.agariHai = Math.floor(lastPlay.hai/4);
         player.tehai.agariFrom = (lastPlay.player-player.number+4)%4;
         player.emit('operation','hu');
-        //if(!isDraw){
         state+=16384*Math.pow(2,player.number);//置等待和牌标记位
-        //}
       }
       //立直
       if(operation.riichi){
         state+=262144*Math.pow(2,player.number);
       }
-    }
+    };
     var playerReady = 0;
     return function(instruction,param){
       switch(instruction){
         case 'ready':
-          if(state===-1&&playerReady<4&&playerReady>=0)playerReady++; 
+          if(state===-1&&playerReady<4&&playerReady>=0)playerReady++;
           if(playerReady>=4){
             playerReady = 0;
             //初始化牌山
             yama.init();
-            console.log(JSON.stringify(yama));
             //初始化该局变量
             for(var i=0;i<4;i++){
               roundInit(players[i]);
@@ -1955,7 +1957,7 @@ var ioResponse = function(io){
                 //无事发生直接摸牌
                 if(yama.getLength()>10){
                   //下家摸牌
-                  state = nextplayer(state);
+                  state = nextPlayer(state);
                   playerDraw(players[state],'normal');
                 }
                 else{
@@ -2048,7 +2050,7 @@ var ioResponse = function(io){
                 }
               }
               break;
-            case 'hu':
+            case 'agari':
               //和牌不需要额外数据
               if(state&16384*Math.pow(2,this.number)){
                 if(this.tehai.haiIndex.length<14){
@@ -2061,7 +2063,7 @@ var ioResponse = function(io){
                   //计算和牌结果
                   var result = {
                     player: this.number,
-                    oya: this.tehai.ji-27;
+                    oya: this.tehai.ji-27,
                     haiIndex: this.tehai.haiIndex,
                     agariFrom: this.tehai.agariFrom,
                     agariHai: this.tehai.agariHai,
@@ -2071,7 +2073,7 @@ var ioResponse = function(io){
                   };
                   //将结算放入队列
                   operationQueue.push({
-                    operation: 'hu',
+                    operation: 'agari',
                     data: result
                   });
                   break;
@@ -2171,7 +2173,7 @@ var ioResponse = function(io){
                       state = result.player;
                       playerDraw(result.player,'kan');
                       break;
-                    case 'hu':
+                    case 'agari':
                       // var result = {
                       //   player: this.number,
                       //   oya: this.tehai.ji-27;
@@ -2261,7 +2263,7 @@ var ioResponse = function(io){
                 //还有牌
                 else if(yama.getLength()>10){
                   //下家摸牌
-                  state = nextplayer(state);
+                  state = nextPlayer(state);
                   playerDraw(players[state],'normal');
                 }
                 //流局
@@ -2284,15 +2286,15 @@ var ioResponse = function(io){
   //server:start(with initial hand)
   //player:operation
   //  discard
-  //  opration
+  //  operation
   //    chi
   //    pon
   //    kan
-  //    hu
+  //    agari
   //    pass
   //server:response
   //  draw
-  //  opration
+  //  operation
   //    chi
   //    pon
   //    kan
@@ -2335,7 +2337,7 @@ var ioResponse = function(io){
       console.log(socket.id + ' Log out. Online: ' + online);
     });
   });
-}
+};
 
 
 module.exports = {router: router, socket: ioResponse};
