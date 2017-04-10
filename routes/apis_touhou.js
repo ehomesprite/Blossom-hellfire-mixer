@@ -1768,11 +1768,12 @@ var ioResponse = function(io){
       //发送摸牌数据
       //state的变化在打牌之后
       player.emit('draw',{
+        turn: player.tehai.ji,
         hai: drawHai,
         kan: result.kan,
         agari: result.agari,
         riichi: result.riichi
-      });
+      })
     };
     //一局结束(以及整场结束)
     var roundEnd = function(result){
@@ -1859,7 +1860,8 @@ var ioResponse = function(io){
           result.agari = true;
         }
       }
-      popHai(player,lastPlay);
+      popHai(player,lastPlay.hai);
+      //console.log('operation', result, 'is draw', isDraw);
       return result;
     };
     var operationSet = function(player, operation){
@@ -1897,8 +1899,21 @@ var ioResponse = function(io){
           if(state===-1&&playerReady<4&&playerReady>=0)playerReady++;
           if(playerReady>=4){
             playerReady = 0;
+
+            //TODO: 测试用牌山
+
             //初始化牌山
-            yama.init();
+            //yama.init();
+            yama.data = [93,100,122,36,82,131,75,118,21,13,37,60,30,49,27,130,129,
+                         80,101,20,91,57,26,134,38,113,108,120,116,31,83,29,51,112,
+                         62,85,69,128,109,23,0,97,7,42,11,87,121,48,117,1,126,
+                         135,55,15,44,52,3,111,66,76,58,50,46,16,2,67,78,89,
+                         105,35,8,65,92,115,70,12,41,40,64,94,98,107,81,32,33,
+                         103,9,25,68,59,114,127,17,56,43,74,19,104,14,119,6,96,
+                         90,10,24,86,4,125,132,102,110,54,39,47,77,18,106,61,72,
+                         63,45,84,99,34,5,79,88,133,28,95,123,22,53,124,73,71];
+
+            console.log(JSON.stringify(yama));
             //初始化该局变量
             for(var i=0;i<4;i++){
               roundInit(players[i]);
@@ -1921,12 +1936,30 @@ var ioResponse = function(io){
             }
             //置状态为开始状态,庄家摸牌
             state = round%4;
-            playerDraw(players[state],'normal');
+            for(var i=0;i<4;i++){
+              if(i===state){
+                playerDraw(players[state],'normal');
+                //console.log(players[state].tehai.haiIndex);
+              }
+              else{
+                players[i].emit('draw', {
+                  turn: players[state].ji,
+                  hai: null,
+                  kan: null,
+                  agari: null,
+                  riichi: null
+                })
+              }
+            }
           }
           break;
         case 'discard':
           if(state===this.number){
             if(this.tehai.haiIndex.indexOf(param)!==-1){
+
+              console.log(players[3].tehai.haiIndex);
+              console.log(JSON.stringify(players[3].tehai.hai));
+
               //TODO: 立直宣言弃牌
 
               //初始化操作队列
@@ -1939,7 +1972,7 @@ var ioResponse = function(io){
               }
               //分发打牌数据
               for(var i=0;i<4;i++){
-                players[i].emit('discard', {
+                players[i].emit('discarded', {
                   discard: players[i].tehai.discard
                 });
               }
@@ -1958,7 +1991,21 @@ var ioResponse = function(io){
                 if(yama.getLength()>10){
                   //下家摸牌
                   state = nextPlayer(state);
-                  playerDraw(players[state],'normal');
+                  for(var i=0;i<4;i++){
+                    if(i===state){
+                      playerDraw(players[state],'normal');
+                      //console.log(players[state].tehai.haiIndex);
+                    }
+                    else{
+                      players[i].emit('draw', {
+                        turn: players[state].ji,
+                        hai: null,
+                        kan: null,
+                        agari: null,
+                        riichi: null
+                      })
+                    }
+                  }
                 }
                 else{
                   //没牌了
@@ -1969,11 +2016,13 @@ var ioResponse = function(io){
             else{
               //牌不存在
               //error handling. disconnect etc.
+              return {status: 'error', text: 'non-exist card when discarding'};
             }
           }
           else{
             //state不对
             //error handling. disconnect etc.
+            return {status: 'error', text: 'wrong state when discarding'};
           }
           break;
         //统一更换为operation,param为
@@ -2317,17 +2366,21 @@ var ioResponse = function(io){
     socket.on('ready', function(){
       socket.operate('ready');
     });
-    socket.on('discard', function(hai){
-      console.log('Player ' + socket.number + ' discarded ' + hai);
-      socket.operate('discard',hai);
+    socket.on('discard', function(data, fn){
+      var ret = socket.operate('discard',data.value);
+      if(ret!==undefined){
+        if(ret.status==='error'){
+          console.log('Player ' + socket.number + ' ' + ret.text)
+        }
+      }
+      else{
+        console.log('Player ' + socket.number + ' discarded ' + data.value);
+        fn('success');
+      }
     });
-    socket.on('hu', function(){
-      console.log('Player ' + socket.number + ' hu');
+    socket.on('operation', function(param){
+      console.log('Player ' + socket.number + ' operate ' + param);
       socket.operate('hu');
-    });
-    socket.on('pass', function(){
-      console.log('Player ' + socket.number + ' pass');
-      socket.operate('pass');
     });
 
     socket.on('disconnect', function(){
