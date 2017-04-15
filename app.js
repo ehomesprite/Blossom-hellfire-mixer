@@ -65,6 +65,20 @@ app.use('/apis/touhou', apis_touhou.router);
 apis_snowchat.socket(io.of('/snowchat'));
 apis_touhou.socket(io.of('/touhou'));
 
+app.get('/test1', function(req, res, next){
+  res.redirect('test1');
+});
+app.get('/test2', function(req, res, next){
+  res.redirect('/test2');
+});
+app.get('/test3', function(req, res, next){
+  res.redirect('lzqyydy/test3');
+});
+app.get('/test4', function(req, res, next){
+  res.redirect('/lzqyydy/test4');
+});
+
+
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   var err = new Error('Not Found');

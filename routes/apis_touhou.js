@@ -161,12 +161,24 @@ function Tehai(){
   this.nakashi = false;
 }
 
+//operation
+//标记计算出来的副露
+//对每一种可能，将结果push到data数组中
+//在处理时根据数组置状态
+//client根据这个数组显示可能的操作
+//
+//
+//   tile: Number,
+//   data: Array[Number]
+//value的值参考顶部副露表
 function Operation(){
-  this.chi = false;
-  this.pon = false;
-  this.kan = false;
-  this.agari = false;
-  this.riichi = false;
+  this.tile = null;
+  this.data = [];
+  // this.chi = false;
+  // this.pon = false;
+  // this.kan = false;
+  // this.agari = false;
+  // this.riichi = false;
 }
 //跟Operation其实没有什么关系
 //在player弃牌时对可能共同触发的副露和和牌进行处理
@@ -1795,6 +1807,7 @@ var ioResponse = function(io){
     //中断操作查询
     var operationDetect = function(player, lastPlay, isDraw){
       var result = new Operation();
+      result.tile = lastPlay.hai;
       addHai(player,lastPlay.hai);
       if(!isDraw){
         //仅下家可吃,去除字牌
@@ -1802,31 +1815,36 @@ var ioResponse = function(io){
           //1位
           if(Math.floor(lastPlay.hai/4)%9<7){
             if(player.tehai.validHai[Math.floor(lastPlay.hai/4)+1]>0&&player.tehai.validHai[Math.floor(lastPlay.hai/4)+2]>0){
-              result.chi = true;
+              //result.chi = true;
+              result.data.push(0);
             }
           }
           //2位
           if(Math.floor(lastPlay.hai/4)%9<8&&Math.floor(lastPlay.hai/4)%9>0){
             if(player.tehai.validHai[Math.floor(lastPlay.hai/4)-1]>0&&player.tehai.validHai[Math.floor(lastPlay.hai/4)+1]>0){
-              result.chi = true;
+              //result.chi = true;
+              result.data.push(1);
             }
           }
           //3位
           if(Math.floor(lastPlay.hai/4)%9>1){
             if(player.tehai.validHai[Math.floor(lastPlay.hai/4)-2]>0&&player.tehai.validHai[Math.floor(lastPlay.hai/4)-1]>0){
-              result.chi = true;
+              //result.chi = true;
+              result.data.push(2);
             }
           }
         }
         //碰
         //仅在该牌在有效手牌中有3张以上张时才能操作
         if(player.tehai.validHai[Math.floor(lastPlay.hai/4)]>=3){
-          result.pon = true;
+          //result.pon = true;
+          result.data.push(2+(4+player.number-lastPlay.player)%4);
         }
         //明杠
         //仅在该牌在有效手牌中有4张时才能操作
         if(player.tehai.validHai[Math.floor(lastPlay.hai/4)]===4){
-          result.kan = true;
+          //result.kan = true;
+          result.data.push(5+(4+player.number-lastPlay.player)%4);
         }
       }
       else{
@@ -1834,18 +1852,20 @@ var ioResponse = function(io){
         //仅在该牌在有效手牌中有4张时才能操作
         if(player.tehai.validHai[Math.floor(lastPlay.hai/4)]===4){
           //player.tehai.furo.set(Math.floor(lastPlay.hai/4),9);
-          result.kan = true;
+          //result.kan = true;
+          result.data.push(9);
         }
         //加杠
         //仅在该牌已有一个碰时才能操作
         if(player.tehai.furo.exist(Math.floor(lastPlay.hai/4),3)||player.tehai.furo.exist(Math.floor(lastPlay.hai/4),4)||player.tehai.furo.exist(Math.floor(lastPlay.hai/4),5)){
           //player.tehai.furo.upgrade(Math.floor(lastPlay.hai/4));
-          result.kan = true;
+          //result.kan = true;
+          result.data.push(10);
         }
         //立直
-        if(syanten(player.tehai)===0){
-          result.riichi = true;
-        }
+        // if(syanten(player.tehai)===0){
+        //   result.riichi = true;
+        // }
         //TODO: 调整和牌判定在没胡牌时返回向听数，用以进行立直判断
       }
       //和
@@ -1857,7 +1877,8 @@ var ioResponse = function(io){
         //最后打(摸)牌的玩家相对于当前玩家的位置
         agariPoint(test);
         if(test.agari.final.basePoint){
-          result.agari = true;
+          //result.agari = true;
+          result.data.push(13);
         }
       }
       popHai(player,lastPlay.hai);
@@ -1865,32 +1886,43 @@ var ioResponse = function(io){
       return result;
     };
     var operationSet = function(player, operation){
-      //吃
-      if(operation.chi){
-        player.emit('operation','chi');
-        state+=4*Math.pow(2,player.number);//置等待吃牌标记位
+      for(var i=0;i<operation.data.length;i++){
+        switch(i){
+          //吃
+          case 0:
+          case 1:
+          case 2:
+            state+=4*Math.pow(2,player.number);//置等待吃牌标记位
+            break;
+          //碰
+          case 3:
+          case 4:
+          case 5:
+            state+=64*Math.pow(2,player.number);//置等待碰牌标记位
+            break;
+          //杠
+          case 6:
+          case 7:
+          case 8:
+          //暗杠
+          case 9:
+          //加杠
+          case 10:
+            state+=1024*Math.pow(2,player.number);//置等待杠牌标记位
+            break;
+          //和
+          case 13:
+            state+=16384*Math.pow(2,player.number);//置等待和牌标记位
+            break;
+        }
       }
-      //碰
-      if(operation.pon){
-        player.emit('operation','pon');
-        state+=64*Math.pow(2,player.number);//置等待碰牌标记位
-      }
-      //杠
-      if(operation.kan){
-        player.emit('operation','kan');
-        state+=1024*Math.pow(2,player.number);//置等待杠牌标记位
-      }
-      //和
-      if(operation.agari){
-        player.tehai.agariHai = Math.floor(lastPlay.hai/4);
-        player.tehai.agariFrom = (lastPlay.player-player.number+4)%4;
-        player.emit('operation','hu');
-        state+=16384*Math.pow(2,player.number);//置等待和牌标记位
+      if(operation.data.length>0){
+        player.emit('operation',operation);
       }
       //立直
-      if(operation.riichi){
-        state+=262144*Math.pow(2,player.number);
-      }
+      // if(operation.riichi){
+      //   state+=262144*Math.pow(2,player.number);
+      // }
     };
     var playerReady = 0;
     return function(instruction,param){
@@ -2105,6 +2137,8 @@ var ioResponse = function(io){
                 if(this.tehai.haiIndex.length<14){
                   addHai(this,lastPlay.hai);
                 }
+                this.tehai.agariHai = Math.floor(lastPlay.hai/4);
+                this.tehai.agariFrom = (lastPlay.player-this.number+4)%4;
                 agariCheck(this.tehai);
                 //理论上成功进到这里应为可以和的牌型
                 if(this.tehai.agari.count){
