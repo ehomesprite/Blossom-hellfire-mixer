@@ -81,68 +81,83 @@ Yama.prototype.getLength = function(){
   return this.data.length;
 };
 
+// furo:{
+//   tile: Number,
+//   value: Number
+// }
+
 function Furo(source){
   if(source){
     this.data = clone(source.data);
   }
   else{
-    this.data = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]];
+    this.data = [];
   }
 }
 Furo.prototype.isValid = function(){
-  if(this.data.length!==34){
-    return false;
-  }
-  else{
-    for(var i=0;i<this.data.length;i++){
-      for(var j=0;j<this.data[i].length;j++){
-        if(this.data[i][j]<1||this.data[i][j]>16){
-          return false;
-        }
-      }
+//   if(this.data.length!==34){
+//     return false;
+//   }
+//   else{
+//     for(var i=0;i<this.data.length;i++){
+//       for(var j=0;j<this.data[i].length;j++){
+//         if(this.data[i][j]<1||this.data[i][j]>16){
+//           return false;
+//         }
+//       }
+//     }
+//   }
+  return true;
+};
+Furo.prototype.count = function(){
+  return this.data.length;
+};
+Furo.prototype.noFuro = function(tile){
+  for(var i=0;i<this.data.length;i++){
+    if(this.data[i].tile===tile&&this.data[i].value!==10){
+      return false;
     }
   }
   return true;
 };
-Furo.prototype.count = function(){
-  var count = 0;
+Furo.prototype.exist = function(tile,value){
   for(var i=0;i<this.data.length;i++){
-    if(this.data[i].length!==0){
-      count+=this.data[i].length;
+    if(this.data[i].tile===tile&&this.data[i].value===value){
+      return true;
     }
   }
-  return count;
+  return false;
 };
-Furo.prototype.noFuro = function(hai){
-  return this.data[hai].length === 0;
-};
-Furo.prototype.exist = function(hai,type){
-  return this.data[hai].indexOf(type) !== -1;
-};
-Furo.prototype.set = function(hai,type){
-  this.data[hai].push(type);
+Furo.prototype.set = function(tile,value){
+  this.data.push({
+    tile: tile,
+    value: value
+  });
 };
 //碰→杠
-Furo.prototype.upgrade = function(hai){
-  if(this.data[hai].indexOf(3)!==1){
-    this.data[this.data[hai].indexOf(3)]+=6;
+Furo.prototype.upgrade = function(tile){
+  for(var i=0;i<this.data.length;i++){
+    if(this.data[i].tile===tile&&(this.data[i].value===3||this.data[i].value===4||this.data[i].value===5)){
+      this.data[i].value+=6;
+    }
   }
-  if(this.data[hai].indexOf(4)!==1){
-    this.data[this.data[hai].indexOf(4)]+=6;
+};
+Furo.prototype.getMap = function(){
+  var furoMap = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]];
+  for(var i=0;i<this.data.length;i++){
+    furoMap[this.data[i].tile].push(this.data[i].value);
   }
-  if(this.data[hai].indexOf(5)!==1){
-    this.data[this.data[hai].indexOf(5)]+=6;
-  }
+  return furoMap;
 };
 
 function Tehai(){
-  this.point = [25000,25000,25000,25000];
+  this.point = 25000;
   this.haiIndex = [];
   this.hai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
   this.validHai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
   this.furo = new Furo();
-  this.dora = [0,0,0,0,0,0,0,0,0,0];
-  this.discard = [[],[],[],[]];
+  this.dora = [0,0,0,0,0];
+  this.discard = [];
   this.agariHai = null;
   this.agariFrom = null;
   this.round = 0;
@@ -1740,13 +1755,20 @@ var ioResponse = function(io){
       player.tehai.hai[Math.floor(hai/4)]--;
       player.tehai.validHai[Math.floor(hai/4)]--;
     };
+    var deleteIndexFuzzy = function(player, index){
+      for(var i=0;i<4;i++){
+        if(player.tehai.haiIndex.indexOf(index*4+(3-i))!==-1){
+          return player.tehai.haiIndex.splice(player.tehai.haiIndex.indexOf(index*4+(3-i)),1);
+        }
+      }
+    };
     var roundInit = function(player){
       player.tehai.haiIndex = [];
       player.tehai.hai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
       player.tehai.validHai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
       player.tehai.furo = new Furo();
-      player.tehai.dora = [0,0,0,0,0,0,0,0,0,0];
-      player.tehai.discard = [[],[],[],[]];
+      player.tehai.dora = [0,0,0,0,0];
+      player.tehai.discard = [];
       player.tehai.agariHai = null;
       player.tehai.agariFrom = null;
       player.tehai.chitoi = false;
@@ -1761,6 +1783,43 @@ var ioResponse = function(io){
       player.tehai.chankan = false;
       player.tehai.nakashi = false;
     };
+    var tehaiMerger = function(player){
+      //player parameter is player number
+      // new object to return
+      var tehai = {
+        point: [],
+        haiIndex: players[player].tehai.haiIndex,
+        discard: [],
+        furo: [],
+        ji: players[player].tehai.ji,
+        ba: players[player].tehai.ba,
+        dora: players[player].tehai.dora
+      };
+      for(var i=0;i<4;i++){
+        tehai.point[i] = players[(player+i)%4].tehai.point;
+        tehai.discard[i] = players[(player+i)%4].tehai.discard;
+        tehai.furo[i] = players[(player+i)%4].tehai.furo.data;
+      }
+      return tehai;
+    };
+    var discardMerger = function(player){
+      //player parameter is player number
+      // new object to return
+      var discard = [[],[],[],[]];
+      for(var i=0;i<4;i++){
+        discard[i] = players[(player+i)%4].tehai.discard;
+      }
+      return discard;
+    };
+    var furoMerger = function(player){
+      //player parameter is player number
+      // new object to return
+      var furo = [];
+      for(var i=0;i<4;i++){
+        furo[i] = players[(player+i)%4].tehai.furo.data;
+      }
+      return furo;
+    };
     //摸牌
     var playerDraw = function(player,type){
       var drawHai = null;
@@ -1771,6 +1830,7 @@ var ioResponse = function(io){
         drawHai = yama.drawTail();
       }
       if(type==='empty'){
+        drawHai = null;
       }
       lastPlay.player = player.number;
       lastPlay.hai = drawHai;
@@ -1815,21 +1875,18 @@ var ioResponse = function(io){
           //1位
           if(Math.floor(lastPlay.hai/4)%9<7){
             if(player.tehai.validHai[Math.floor(lastPlay.hai/4)+1]>0&&player.tehai.validHai[Math.floor(lastPlay.hai/4)+2]>0){
-              //result.chi = true;
               result.data.push(0);
             }
           }
           //2位
           if(Math.floor(lastPlay.hai/4)%9<8&&Math.floor(lastPlay.hai/4)%9>0){
             if(player.tehai.validHai[Math.floor(lastPlay.hai/4)-1]>0&&player.tehai.validHai[Math.floor(lastPlay.hai/4)+1]>0){
-              //result.chi = true;
               result.data.push(1);
             }
           }
           //3位
           if(Math.floor(lastPlay.hai/4)%9>1){
             if(player.tehai.validHai[Math.floor(lastPlay.hai/4)-2]>0&&player.tehai.validHai[Math.floor(lastPlay.hai/4)-1]>0){
-              //result.chi = true;
               result.data.push(2);
             }
           }
@@ -1837,13 +1894,11 @@ var ioResponse = function(io){
         //碰
         //仅在该牌在有效手牌中有3张以上张时才能操作
         if(player.tehai.validHai[Math.floor(lastPlay.hai/4)]>=3){
-          //result.pon = true;
           result.data.push(2+(4+player.number-lastPlay.player)%4);
         }
         //明杠
         //仅在该牌在有效手牌中有4张时才能操作
         if(player.tehai.validHai[Math.floor(lastPlay.hai/4)]===4){
-          //result.kan = true;
           result.data.push(5+(4+player.number-lastPlay.player)%4);
         }
       }
@@ -1851,15 +1906,11 @@ var ioResponse = function(io){
         //暗杠(实际跟明杠一样,只是触发阶段不一样)
         //仅在该牌在有效手牌中有4张时才能操作
         if(player.tehai.validHai[Math.floor(lastPlay.hai/4)]===4){
-          //player.tehai.furo.set(Math.floor(lastPlay.hai/4),9);
-          //result.kan = true;
           result.data.push(9);
         }
         //加杠
         //仅在该牌已有一个碰时才能操作
         if(player.tehai.furo.exist(Math.floor(lastPlay.hai/4),3)||player.tehai.furo.exist(Math.floor(lastPlay.hai/4),4)||player.tehai.furo.exist(Math.floor(lastPlay.hai/4),5)){
-          //player.tehai.furo.upgrade(Math.floor(lastPlay.hai/4));
-          //result.kan = true;
           result.data.push(10);
         }
         //立直
@@ -1924,6 +1975,184 @@ var ioResponse = function(io){
       //   state+=262144*Math.pow(2,player.number);
       // }
     };
+    var operationPass = function(number){
+      //取消该玩家的全部标志位
+      //取消吃
+      if(state&4*Math.pow(2,number)){
+        state-=4*Math.pow(2,number);
+      }
+      //取消碰
+      if(state&64*Math.pow(2,number)){
+        state-=64*Math.pow(2,number);
+      }
+      //取消杠
+      if(state&1024*Math.pow(2,number)){
+        state-=1024*Math.pow(2,number);
+      }
+      //取消和
+      if(state&16384*Math.pow(2,number)){
+        state-=16384*Math.pow(2,number);
+      }
+      //取消立直
+      if(state&262144*Math.pow(2,number)){
+        state-=262144*Math.pow(2,number);
+      }
+    };
+    var operationHandle = function(){
+      if(state>=0&&state<4){
+        //没有更多的操作需要等待响应
+        //从操作队列中选择本回合会进行的操作进行处理
+        if(operationQueue.result()[0] !== null){
+          var result = operationQueue.result()[0];
+          var tile = Math.floor(result.data.tile/4);
+          switch(result.operation){
+            //把副露牌加入自己的牌中
+            case 'chi':
+              if(result.data.value === 0){
+                players[result.player].tehai.hai[tile]++;
+                players[result.player].tehai.validHai[tile + 1]--;
+                players[result.player].tehai.validHai[tile + 2]--;
+                deleteIndexFuzzy(players[result.player], tile + 1);
+                deleteIndexFuzzy(players[result.player], tile + 2);
+                players[result.player].tehai.furo.set(tile, result.data.value);
+              }
+              if(result.data.value === 1){
+                players[result.player].tehai.hai[tile]++;
+                players[result.player].tehai.validHai[tile - 1]--;
+                players[result.player].tehai.validHai[tile + 1]--;
+                deleteIndexFuzzy(players[result.player], tile - 1);
+                deleteIndexFuzzy(players[result.player], tile + 1);
+                players[result.player].tehai.furo.set(tile, result.data.value);
+              }
+              if(result.data.value === 2){
+                players[result.player].tehai.hai[tile]++;
+                players[result.player].tehai.validHai[tile - 2]--;
+                players[result.player].tehai.validHai[tile - 1]--;
+                deleteIndexFuzzy(players[result.player], tile - 2);
+                deleteIndexFuzzy(players[result.player], tile - 1);
+                players[result.player].tehai.furo.set(tile, result.data.value);
+              }
+              //向所有玩家发送副露数据
+              for(var i=0;i<4;i++){
+                players[i].emit('furo', {
+                  furo: furoMerger(i)
+                });
+              }
+              //空摸牌，置state
+              state = result.player;
+              playerDraw(players[result.player], 'empty');
+              break;
+            case 'pon':
+              players[result.player].tehai.hai[tile]++;
+              players[result.player].tehai.validHai[tile] -= 2;
+              deleteIndexFuzzy(players[result.player], tile);
+              deleteIndexFuzzy(players[result.player], tile);
+              players[result.player].tehai.furo.set(tile, result.data.value);
+              //向所有玩家发送副露数据
+              for(var i=0;i<4;i++){
+                players[i].emit('furo', {
+                  furo: furoMerger(i)
+                });
+              }
+              //空摸牌，置state
+              state = result.player;
+              playerDraw(players[result.player], 'empty');
+              break;
+            case 'kan':
+              //明杠
+              if(result.data.value < 9){
+                players[result.player].tehai.validHai[tile] -= 3;
+                deleteIndexFuzzy(players[result.player], tile);
+                deleteIndexFuzzy(players[result.player], tile);
+                deleteIndexFuzzy(players[result.player], tile);
+                players[result.player].tehai.furo.set(tile, result.data.value);
+              }
+              //暗杠
+              if(result.data.value === 9){
+                players[result.player].tehai.hai[tile]--;
+                players[result.player].tehai.validHai[tile] -= 4;
+                deleteIndexFuzzy(players[result.player], tile);
+                deleteIndexFuzzy(players[result.player], tile);
+                deleteIndexFuzzy(players[result.player], tile);
+                deleteIndexFuzzy(players[result.player], tile);
+                players[result.player].tehai.furo.set(tile, result.data.value);
+              }
+              //加杠
+              if(result.data.value > 9){
+                players[result.player].tehai.validHai[tile]--;
+                deleteIndexFuzzy(players[result.player], tile);
+                players[result.player].tehai.furo.upgrade(tile);
+              }
+              //向所有玩家发送副露数据
+              for(var i=0;i<4;i++){
+                players[i].emit('furo', {
+                  furo: furoMerger(i)
+                });
+              }
+              //摸岭上牌，置state
+              state = result.player;
+              playerDraw(players[result.player], 'kan');
+              break;
+            case 'agari':
+              // var result = {
+              //   player: this.number,
+              //   oya: this.tehai.ji-27;
+              //   haiIndex: this.tehai.haiIndex,
+              //   agariFrom: this.tehai.agariFrom,
+              //   agariHai: this.tehai.agariHai,
+              //   fu: this.tehai.agari.final.fu,
+              //   han: this.tehai.agari.final.han,
+              //   basePoint: this.tehai.agari.final.basePoint
+              // };
+              for(var i = 0; i < result.data.length; i++){
+                //TODO: 考虑重做tehai中分数表示
+                //在结算时只结算每个人各自的分数
+                //开局时或结算完成后玩家分数交换数据更新
+                if(result.data[i].oya === 0){
+                  if(result.data[i].agariFrom === 0){
+                    players[result.data[i].player].tehai.point += result.data[i].basePoint * 6;
+                    players[(result.data[i].player + 1) % 4].tehai.point -= result.data[i].basePoint * 2;
+                    players[(result.data[i].player + 2) % 4].tehai.point -= result.data[i].basePoint * 2;
+                    players[(result.data[i].player + 3) % 4].tehai.point -= result.data[i].basePoint * 2;
+                  }
+                  else{
+                    players[result.data[i].player].tehai.point += result.data[i].basePoint * 6;
+                    players[(4+result.data[i].agariFrom-result.data[i].player)%4].tehai.point -= result.data[i].basePoint * 6;
+                  }
+                }
+                else{
+                  if(result.data[i].agariFrom === 0){
+                    players[result.data[i].player].tehai.point[0] += result.data[i].basePoint * 4;
+                    players[(result.data[i].player + 1) % 4].tehai.point -= result.data[i].basePoint * 1;
+                    players[(result.data[i].player + 2) % 4].tehai.point -= result.data[i].basePoint * 1
+                    players[(result.data[i].player + 3) % 4].tehai.point -= result.data[i].basePoint * 1;
+                    players[(4+4 - result.data[i].oya-result.data[i].player)%4].tehai.point -= result.data[i].basePoint * 1;
+                  }
+                  else{
+                    players[result.data[i].player].tehai.point += result.data[i].basePoint * 4;
+                    players[(4+result.data[i].agariFrom-result.data[i].player)%4].tehai.point -= result.data[i].basePoint * 4;
+                  }
+                }
+              }
+              for(var i = 0; i < players.length; i++){
+                players[i].emit(roundEnd, result.data);
+              }
+              break;
+          }
+        }
+        //可以摸牌了
+        //还有牌
+        else if(yama.getLength() > 10){
+          //下家摸牌
+          state = nextPlayer(state);
+          playerDraw(players[state], 'normal');
+        }
+        //流局
+        else{
+          roundEnd();
+        }
+      }
+    };
     var playerReady = 0;
     return function(instruction,param){
       switch(instruction){
@@ -1961,9 +2190,10 @@ var ioResponse = function(io){
               players[(round+i)%4].tehai.ji = 27+(4-round%4+i)%4;
               players[(round+i)%4].tehai.ba = 27+Math.floor(round/4);
             }
+            //TODO: 过滤和交换tehai数据
             for(var i=0;i<4;i++){
               players[i].emit('start',{
-                tehai: players[i].tehai
+                tehai: tehaiMerger(i)
               });
             }
             //置状态为开始状态,庄家摸牌
@@ -1999,13 +2229,11 @@ var ioResponse = function(io){
               //从手牌中移除
               deleteHai(this,param);
               //将打牌置入弃牌对象中
-              for(var i=0;i<4;i++){
-                players[(this.number+i)%4].tehai.discard[(4-i)%4].push(param);
-              }
+              players[this.number].tehai.discard.push(param);
               //分发打牌数据
               for(var i=0;i<4;i++){
                 players[i].emit('discarded', {
-                  discard: players[i].tehai.discard
+                  discard: discardMerger(i)
                 });
               }
               //记录打牌
@@ -2062,57 +2290,63 @@ var ioResponse = function(io){
         //  index:副露的牌
         //  value:副露的值
         case 'operation':
-          switch(param.type){
+          switch(param.value){
             //所有操作push到操作队列中
-            //TODO: 做可用判断
-            //TODO: 最终操作移到外面
-            case 'chi':
+            //因为state在服务器端置值，所以不需要做可用判断?
+            //最终操作移到外面
+            case 1:
+            case 2:
+            case 3:
               if(state&4*Math.pow(2,this.number)){
                 //将结算放入队列
                 operationQueue.push({
                   'operation': 'chi',
                   'player': this.number,
                   'data': {
-                    'index': param.index,
-                    'value': param.value
+                    'tile': param.tile,
+                    'value': param.value-1
                   }
                 });
+                operationPass(this.number);
+                operationHandle();
               }
               break;
-            case 'pon':
+            case 5:
               if(state&64*Math.pow(2,this.number)){
                 //将结算放入队列
                 operationQueue.push({
                   'operation': 'pon',
                   'player': this.number,
                   'data': {
-                    'index': param.index,
+                    'tile': param.tile,
                     'value': 2+(lastPlay.player+4-this.number)%4
                   }
                 });
+                operationPass(this.number);
+                operationHandle();
               }
               break;
-            case 'kan':
+            case 6:
               if(state&1024*Math.pow(2,this.number)){
                 //将结算放入队列
-                if(this.tehai.validHai[index]===3){
+                if(this.tehai.validHai[param.tile]===3){
                   //明杠
                   operationQueue.push({
                     'operation': 'kan',
                     'player': this.number,
                     'data': {
-                      'index': param.index,
+                      'tile': param.tile,
                       'value': 5+(lastPlay.player+4-this.number)%4
                     }
                   });
                 }
-                else if(this.tehai.validHai[index]===4){
+                else if(this.tehai.validHai[param.tile]===4){
                   //暗杠
                   operationQueue.push({
                     'operation': 'kan',
                     'player': this.number,
                     'data': {
-                      'index': param.index,
+                      'tile': param.tile,
                       'value': 9
                     }
                   });
@@ -2124,14 +2358,16 @@ var ioResponse = function(io){
                     'operation': 'kan',
                     'player': this.number,
                     'data': {
-                      'index': param.index,
+                      'tile': param.tile,
                       'value': 10
                     }
                   });
                 }
+                operationPass(this.number);
+                operationHandle();
               }
               break;
-            case 'agari':
+            case 4:
               //和牌不需要额外数据
               if(state&16384*Math.pow(2,this.number)){
                 if(this.tehai.haiIndex.length<14){
@@ -2159,201 +2395,27 @@ var ioResponse = function(io){
                     operation: 'agari',
                     data: result
                   });
-                  break;
                 }
+                operationPass(this.number);
+                operationHandle();
               }
               else{
                 //state不对
                 //error handling. disconnect etc.
               }
               break;
-            case 'riichi':
+            case 0:
               //因为立直只会在自摸时触发
               //故不需要将其置入队列
               //暗杠和加杠也不需要，但与明杠混合，置入队列也无影响
               //此处进入立直准备状态，在弃牌后进入实际立直状态，切牌变为立直表示牌
-              this.tehai.riichiReady = true;
+              //TODO: 完成立直
+              //this.tehai.riichiReady = true;
               break;
-            case 'pass':
+            case 7:
               //玩家放弃操作时直接进入此部分
-              //取消该玩家的全部标志位
-              //取消吃
-              if(state&4*Math.pow(2,this.number)){
-                state-=4*Math.pow(2,this.number);
-              }
-              //取消碰
-              if(state&64*Math.pow(2,this.number)){
-                state-=64*Math.pow(2,this.number);
-              }
-              //取消杠
-              if(state&1024*Math.pow(2,this.number)){
-                state-=1024*Math.pow(2,this.number);
-              }
-              //取消和
-              if(state&16384*Math.pow(2,this.number)){
-                state-=16384*Math.pow(2,this.number);
-              }
-              //取消立直
-              if(state&262144*Math.pow(2,this.number)){
-                state-=262144*Math.pow(2,this.number);
-              }
-              if(state>=0&&state<4){
-                //没有更多的操作需要等待响应
-                //从操作队列中选择本回合会进行的操作进行处理
-                if(operationQueue.result()!==null){
-                  var result = operationQueue.result();
-                  switch(result.operation){
-                    //把副露牌加入自己的牌中
-                    case 'chi':
-                      if(result.data.value===0){
-                        players[result.player].tehai.hai[result.data.index]++;
-                        players[result.player].tehai.validHai[result.data.index+1]--;
-                        players[result.player].tehai.validHai[result.data.index+2]--;
-                        players[result.player].tehai.furo.set(result.data.index,result.data.value);
-                      }
-                      if(result.data.value===1){
-                        players[result.player].tehai.hai[result.data.index]++;
-                        players[result.player].tehai.validHai[result.data.index-1]--;
-                        players[result.player].tehai.validHai[result.data.index+1]--;
-                        players[result.player].tehai.furo.set(result.data.index,result.data.value);
-                      }
-                      if(result.data.value===2){
-                        players[result.player].tehai.hai[result.data.index]++;
-                        players[result.player].tehai.validHai[result.data.index-2]--;
-                        players[result.player].tehai.validHai[result.data.index-1]--;
-                        players[result.player].tehai.furo.set(result.data.index,result.data.value);
-                      }
-                      //空摸牌，置state
-                      state = result.player;
-                      playerDraw(result.player,'empty');
-                      break;
-                    case 'pon':
-                      players[result.player].tehai.hai[result.data.index]++;
-                      players[result.player].tehai.validHai[result.data.index]-=2;
-                      players[result.player].tehai.furo.set(result.data.index,result.data.value);
-                      //空摸牌，置state
-                      state = result.player;
-                      playerDraw(result.player,'empty');
-                      break;
-                    case 'kan':
-                      //明杠
-                      if(result.data.value<9){
-                        players[result.player].tehai.validHai[result.data.index]-=3;
-                        players[result.player].tehai.furo.set(result.data.index,result.data.value);
-                      }
-                      //暗杠
-                      if(result.data.value===9){
-                        players[result.player].tehai.hai[result.data.index]--;
-                        players[result.player].tehai.validHai[result.data.index]-=4;
-                        players[result.player].tehai.furo.set(result.data.index,result.data.value);
-                      }
-                      //加杠
-                      if(result.data.value>9){
-                        players[result.player].tehai.validHai[result.data.index]--;
-                        players[result.player].tehai.furo.upgrade(result.data.index);
-                      }
-                      //摸岭上牌，置state
-                      state = result.player;
-                      playerDraw(result.player,'kan');
-                      break;
-                    case 'agari':
-                      // var result = {
-                      //   player: this.number,
-                      //   oya: this.tehai.ji-27;
-                      //   haiIndex: this.tehai.haiIndex,
-                      //   agariFrom: this.tehai.agariFrom,
-                      //   agariHai: this.tehai.agariHai,
-                      //   fu: this.tehai.agari.final.fu,
-                      //   han: this.tehai.agari.final.han,
-                      //   basePoint: this.tehai.agari.final.basePoint
-                      // };
-                      for(var i=0;i<result.data.length;i++){
-                        //TODO: 考虑重做tehai中分数表示
-                        //在结算时只结算每个人各自的分数
-                        //开局时或结算完成后玩家分数交换数据更新
-                        if(result.data[i].oya===0){
-                          if(result.data[i].agariFrom===0){
-                            players[result.data[i].player].tehai.point[0] += result.data[i].basePoint*6;
-                            players[result.data[i].player].tehai.point[1] -= result.data[i].basePoint*2;
-                            players[result.data[i].player].tehai.point[2] -= result.data[i].basePoint*2;
-                            players[result.data[i].player].tehai.point[3] -= result.data[i].basePoint*2;
-                            players[(result.data[i].player+1)%4].tehai.point[0] -= result.data[i].basePoint*2;
-                            players[(result.data[i].player+1)%4].tehai.point[1] -= result.data[i].basePoint*2;
-                            players[(result.data[i].player+1)%4].tehai.point[2] -= result.data[i].basePoint*2;
-                            players[(result.data[i].player+1)%4].tehai.point[3] += result.data[i].basePoint*6;
-                            players[(result.data[i].player+2)%4].tehai.point[0] -= result.data[i].basePoint*2;
-                            players[(result.data[i].player+2)%4].tehai.point[1] -= result.data[i].basePoint*2;
-                            players[(result.data[i].player+2)%4].tehai.point[2] += result.data[i].basePoint*6;
-                            players[(result.data[i].player+2)%4].tehai.point[3] -= result.data[i].basePoint*2;
-                            players[(result.data[i].player+3)%4].tehai.point[0] -= result.data[i].basePoint*2;
-                            players[(result.data[i].player+3)%4].tehai.point[1] += result.data[i].basePoint*6;
-                            players[(result.data[i].player+3)%4].tehai.point[2] -= result.data[i].basePoint*2;
-                            players[(result.data[i].player+3)%4].tehai.point[3] -= result.data[i].basePoint*2;
-                          }
-                          else{
-                            players[result.data[i].player].tehai.point[0] += result.data[i].basePoint*6;
-                            players[result.data[i].player].tehai.point[result.data[i].agariFrom] -= result.data[i].basePoint*6;
-                            players[(result.data[i].player+1)%4].tehai.point[3] += result.data[i].basePoint*6;
-                            players[(result.data[i].player+1)%4].tehai.point[(result.data[i].agariFrom+3)%4] -= result.data[i].basePoint*6;
-                            players[(result.data[i].player+2)%4].tehai.point[2] += result.data[i].basePoint*6;
-                            players[(result.data[i].player+2)%4].tehai.point[(result.data[i].agariFrom+2)%4] -= result.data[i].basePoint*6;
-                            players[(result.data[i].player+3)%4].tehai.point[1] += result.data[i].basePoint*6;
-                            players[(result.data[i].player+3)%4].tehai.point[(result.data[i].agariFrom+1)%4] -= result.data[i].basePoint*6;
-                          }
-                        }
-                        else{
-                          if(result.data[i].agariFrom===0){
-                            players[result.data[i].player].tehai.point[0] += result.data[i].basePoint*4;
-                            players[result.data[i].player].tehai.point[1] -= result.data[i].basePoint*1;
-                            players[result.data[i].player].tehai.point[2] -= result.data[i].basePoint*1;
-                            players[result.data[i].player].tehai.point[3] -= result.data[i].basePoint*1;
-                            players[result.data[i].player].tehai.point[4-result.data[i].oya] -= result.data[i].basePoint*1;
-                            players[(result.data[i].player+1)%4].tehai.point[0] -= result.data[i].basePoint*1;
-                            players[(result.data[i].player+1)%4].tehai.point[1] -= result.data[i].basePoint*1;
-                            players[(result.data[i].player+1)%4].tehai.point[2] -= result.data[i].basePoint*1;
-                            players[(result.data[i].player+1)%4].tehai.point[3] += result.data[i].basePoint*4;
-                            players[(result.data[i].player+1)%4].tehai.point[(4-result.data[i].oya+3)%4] -= result.data[i].basePoint*1;
-                            players[(result.data[i].player+2)%4].tehai.point[0] -= result.data[i].basePoint*1;
-                            players[(result.data[i].player+2)%4].tehai.point[1] -= result.data[i].basePoint*1;
-                            players[(result.data[i].player+2)%4].tehai.point[2] += result.data[i].basePoint*4;
-                            players[(result.data[i].player+2)%4].tehai.point[3] -= result.data[i].basePoint*1;
-                            players[(result.data[i].player+2)%4].tehai.point[(4-result.data[i].oya+2)%4] -= result.data[i].basePoint*1;
-                            players[(result.data[i].player+3)%4].tehai.point[0] -= result.data[i].basePoint*1;
-                            players[(result.data[i].player+3)%4].tehai.point[1] += result.data[i].basePoint*4;
-                            players[(result.data[i].player+3)%4].tehai.point[2] -= result.data[i].basePoint*1;
-                            players[(result.data[i].player+3)%4].tehai.point[3] -= result.data[i].basePoint*1;
-                            players[(result.data[i].player+3)%4].tehai.point[(4-result.data[i].oya+1)%4] -= result.data[i].basePoint*1;
-                          }
-                          else{
-                            players[result.data[i].player].tehai.point[0] += result.data[i].basePoint*4;
-                            players[result.data[i].player].tehai.point[result.data[i].agariFrom] -= result.data[i].basePoint*4;
-                            players[(result.data[i].player+1)%4].tehai.point[3] += result.data[i].basePoint*4;
-                            players[(result.data[i].player+1)%4].tehai.point[(result.data[i].agariFrom+3)%4] -= result.data[i].basePoint*4;
-                            players[(result.data[i].player+2)%4].tehai.point[2] += result.data[i].basePoint*4;
-                            players[(result.data[i].player+2)%4].tehai.point[(result.data[i].agariFrom+2)%4] -= result.data[i].basePoint*4;
-                            players[(result.data[i].player+3)%4].tehai.point[1] += result.data[i].basePoint*4;
-                            players[(result.data[i].player+3)%4].tehai.point[(result.data[i].agariFrom+1)%4] -= result.data[i].basePoint*4;
-                          }
-                        }
-                      }
-                      for(var i=0;i<players.length;i++){
-                        players[i].emit(roundEnd,result.data);
-                      }
-                      break;
-                  }
-                }
-                //可以摸牌了
-                //还有牌
-                else if(yama.getLength()>10){
-                  //下家摸牌
-                  state = nextPlayer(state);
-                  playerDraw(players[state],'normal');
-                }
-                //流局
-                else{
-                  roundEnd();
-                }
-              }
+              operationPass(this.number);
+              operationHandle();
               break;
           }
           break;
@@ -2412,9 +2474,17 @@ var ioResponse = function(io){
         fn('success');
       }
     });
-    socket.on('operation', function(param){
-      console.log('Player ' + socket.number + ' operate ' + param);
-      socket.operate('hu');
+    socket.on('operation', function(param, fn){
+      var ret = socket.operate('operation', param);
+      if(ret!==undefined){
+        if(ret.status==='error'){
+          console.log('Player ' + socket.number + ' ' + ret.text)
+        }
+      }
+      else{
+        console.log('Player ' + socket.number + ' operate ' , param);
+        fn();
+      }
     });
 
     socket.on('disconnect', function(){
