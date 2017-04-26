@@ -88,7 +88,7 @@ Yama.prototype.getLength = function(){
 
 function Furo(source){
   if(source){
-    this.data = clone(source.data);
+    this.data = source.data.slice();
   }
   else{
     this.data = [];
@@ -150,30 +150,57 @@ Furo.prototype.getMap = function(){
   return furoMap;
 };
 
-function Tehai(){
-  this.point = 25000;
-  this.haiIndex = [];
-  this.hai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-  this.validHai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-  this.furo = new Furo();
-  this.dora = [0,0,0,0,0];
-  this.discard = [];
-  this.agariHai = null;
-  this.agariFrom = null;
-  this.round = 0;
-  this.ji = null;
-  this.ba = null;
-  this.chitoi = false;
-  this.kokushi = false;
-  this.first = false;
-  this.last = false;
-  this.riichi = false;
-  this.riichiReady = false;
-  this.ippatsu = false;
-  this.rinsyan = false;
-  this.double = false;
-  this.chankan = false;
-  this.nakashi = false;
+function Tehai(source){
+  if(source){
+    this.point = source.point;
+    this.haiIndex = source.haiIndex.slice();
+    this.hai = source.hai.slice();
+    this.validHai = source.validHai.slice();
+    this.furo = new Furo(source.furo);
+    this.dora = source.dora.slice();
+    this.discard = source.discard.slice();
+    this.agariHai = source.agariHai;
+    this.agariFrom = source.agariFrom;
+    this.round = source.round;
+    this.ji = source.ji;
+    this.ba = source.ba;
+    this.chitoi = source.chitoi;
+    this.kokushi = source.kokushi;
+    this.first = source.first;
+    this.last = source.last;
+    this.riichi = source.riichi;
+    this.riichiReady = source.riichiReady;
+    this.ippatsu = source.ippatsu;
+    this.rinsyan = source.rinsyan;
+    this.double = source.double;
+    this.chankan = source.chankan;
+    this.nakashi = source.nakashi;
+  }
+  else{
+    this.point = 25000;
+    this.haiIndex = [];
+    this.hai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+    this.validHai = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+    this.furo = new Furo();
+    this.dora = [0,0,0,0,0];
+    this.discard = [];
+    this.agariHai = null;
+    this.agariFrom = null;
+    this.round = 0;
+    this.ji = null;
+    this.ba = null;
+    this.chitoi = false;
+    this.kokushi = false;
+    this.first = false;
+    this.last = false;
+    this.riichi = false;
+    this.riichiReady = false;
+    this.ippatsu = false;
+    this.rinsyan = false;
+    this.double = false;
+    this.chankan = false;
+    this.nakashi = false;
+  }
 }
 
 //operation
@@ -198,7 +225,7 @@ function Operation(){
 //跟Operation其实没有什么关系
 //在player弃牌时对可能共同触发的副露和和牌进行处理
 //填入的内容
-//player: Numeber
+//player: Number
 //operation: String
 //data: Object{
 //  index: Number,
@@ -218,7 +245,7 @@ OperationQueue.prototype.push = function(param){
   if(param.operation==='pon'||param.operation==='kan'){
     this.queue[1].push(param);
   }
-  if(param.operation==='hu'){
+  if(param.operation==='agari'){
     this.queue[0].push(param);
   }
 };
@@ -233,7 +260,7 @@ OperationQueue.prototype.result = function(){
     return this.queue[2];
   }
   else{
-    return null;
+    return [];
   }
 };
 
@@ -650,8 +677,9 @@ var agariCheck = function(){
       //流满则不判断和牌
       if(!tehai.nakashi){
         //振听判定
+        //TODO: 完善
         //打出过和牌且和牌不是自摸
-        if(tehai.discard[0].indexOf(tehai.agariHai)!==-1&&tehai.agariFrom!==0){
+        if(tehai.discard.indexOf(tehai.agariHai)!==-1&&tehai.agariFrom!==0){
           return false;
         }
         else{
@@ -1630,23 +1658,23 @@ var agariPoint = function(){
             case 3:
             case 4:
             case 5:
-              basePoint = 2000;
+              tehai.agari.result[i].basePoint = 2000;
               break;
             case 6:
             case 7:
-              basePoint = 3000;
+              tehai.agari.result[i].basePoint = 3000;
               break;
             case 8:
             case 9:
             case 10:
-              basePoint = 4000;
+              tehai.agari.result[i].basePoint = 4000;
               break;
             case 11:
             case 12:
-              basePoint = 6000;
+              tehai.agari.result[i].basePoint = 6000;
               break;
             case 13:
-              basePoint = 8000;
+              tehai.agari.result[i].basePoint = 8000;
               break;
           }
         }
@@ -1791,6 +1819,7 @@ var ioResponse = function(io){
         haiIndex: players[player].tehai.haiIndex,
         discard: [],
         furo: [],
+        round: players[player].tehai.round,
         ji: players[player].tehai.ji,
         ba: players[player].tehai.ba,
         dora: players[player].tehai.dora
@@ -1836,7 +1865,9 @@ var ioResponse = function(io){
       lastPlay.hai = drawHai;
       var result = operationDetect(player, lastPlay, true);
       operationSet(player,result);
-      addHai(player,drawHai);
+      if(drawHai!==null){
+        addHai(player,drawHai);
+      }
       //发送摸牌数据
       //state的变化在打牌之后
       player.emit('draw',{
@@ -1938,7 +1969,7 @@ var ioResponse = function(io){
     };
     var operationSet = function(player, operation){
       for(var i=0;i<operation.data.length;i++){
-        switch(i){
+        switch(operation.data[i]){
           //吃
           case 0:
           case 1:
@@ -1999,10 +2030,11 @@ var ioResponse = function(io){
       }
     };
     var operationHandle = function(){
+      //TODO: 从弃牌中移除牌
       if(state>=0&&state<4){
         //没有更多的操作需要等待响应
         //从操作队列中选择本回合会进行的操作进行处理
-        if(operationQueue.result()[0] !== null){
+        if(operationQueue.result()[0] !== undefined){
           var result = operationQueue.result()[0];
           var tile = Math.floor(result.data.tile/4);
           switch(result.operation){
@@ -2035,7 +2067,7 @@ var ioResponse = function(io){
               //向所有玩家发送副露数据
               for(var i=0;i<4;i++){
                 players[i].emit('furo', {
-                  furo: furoMerger(i)
+                  tehai: tehaiMerger(i)
                 });
               }
               //空摸牌，置state
@@ -2051,7 +2083,7 @@ var ioResponse = function(io){
               //向所有玩家发送副露数据
               for(var i=0;i<4;i++){
                 players[i].emit('furo', {
-                  furo: furoMerger(i)
+                  tehai: tehaiMerger(i)
                 });
               }
               //空摸牌，置state
@@ -2086,7 +2118,7 @@ var ioResponse = function(io){
               //向所有玩家发送副露数据
               for(var i=0;i<4;i++){
                 players[i].emit('furo', {
-                  furo: furoMerger(i)
+                  tehai: tehaiMerger(i)
                 });
               }
               //摸岭上牌，置state
@@ -2104,38 +2136,40 @@ var ioResponse = function(io){
               //   han: this.tehai.agari.final.han,
               //   basePoint: this.tehai.agari.final.basePoint
               // };
-              for(var i = 0; i < result.data.length; i++){
+              result = operationQueue.result();
+              for(var i = 0; i < result.length; i++){
                 //TODO: 考虑重做tehai中分数表示
                 //在结算时只结算每个人各自的分数
                 //开局时或结算完成后玩家分数交换数据更新
-                if(result.data[i].oya === 0){
-                  if(result.data[i].agariFrom === 0){
-                    players[result.data[i].player].tehai.point += result.data[i].basePoint * 6;
-                    players[(result.data[i].player + 1) % 4].tehai.point -= result.data[i].basePoint * 2;
-                    players[(result.data[i].player + 2) % 4].tehai.point -= result.data[i].basePoint * 2;
-                    players[(result.data[i].player + 3) % 4].tehai.point -= result.data[i].basePoint * 2;
+                if(result[i].data.oya === 0){
+                  if(result[i].data.agariFrom === 0){
+                    players[result[i].data.player].tehai.point += result[i].data.basePoint * 6;
+                    players[(result[i].data.player + 1) % 4].tehai.point -= result[i].data.basePoint * 2;
+                    players[(result[i].data.player + 2) % 4].tehai.point -= result[i].data.basePoint * 2;
+                    players[(result[i].data.player + 3) % 4].tehai.point -= result[i].data.basePoint * 2;
                   }
                   else{
-                    players[result.data[i].player].tehai.point += result.data[i].basePoint * 6;
-                    players[(4+result.data[i].agariFrom-result.data[i].player)%4].tehai.point -= result.data[i].basePoint * 6;
+                    players[result[i].data.player].tehai.point += result[i].data.basePoint * 6;
+                    players[(4+result[i].data.agariFrom-result[i].data.player)%4].tehai.point -= result[i].data.basePoint * 6;
                   }
                 }
                 else{
-                  if(result.data[i].agariFrom === 0){
-                    players[result.data[i].player].tehai.point[0] += result.data[i].basePoint * 4;
-                    players[(result.data[i].player + 1) % 4].tehai.point -= result.data[i].basePoint * 1;
-                    players[(result.data[i].player + 2) % 4].tehai.point -= result.data[i].basePoint * 1
-                    players[(result.data[i].player + 3) % 4].tehai.point -= result.data[i].basePoint * 1;
-                    players[(4+4 - result.data[i].oya-result.data[i].player)%4].tehai.point -= result.data[i].basePoint * 1;
+                  if(result[i].data.agariFrom === 0){
+                    players[result[i].data.player].tehai.point[0] += result[i].data.basePoint * 4;
+                    players[(result[i].data.player + 1) % 4].tehai.point -= result[i].data.basePoint * 1;
+                    players[(result[i].data.player + 2) % 4].tehai.point -= result[i].data.basePoint * 1
+                    players[(result[i].data.player + 3) % 4].tehai.point -= result[i].data.basePoint * 1;
+                    players[(4+4 - result[i].data.oya-result[i].data.player)%4].tehai.point -= result[i].data.basePoint * 1;
                   }
                   else{
-                    players[result.data[i].player].tehai.point += result.data[i].basePoint * 4;
-                    players[(4+result.data[i].agariFrom-result.data[i].player)%4].tehai.point -= result.data[i].basePoint * 4;
+                    players[result[i].data.player].tehai.point += result[i].data.basePoint * 4;
+                    players[(4+result[i].data.agariFrom-result[i].data.player)%4].tehai.point -= result[i].data.basePoint * 4;
                   }
                 }
               }
+              roundEnd();
               for(var i = 0; i < players.length; i++){
-                players[i].emit(roundEnd, result.data);
+                players[i].emit("roundEnd", result);
               }
               break;
           }
@@ -2161,10 +2195,10 @@ var ioResponse = function(io){
           if(playerReady>=4){
             playerReady = 0;
 
-            //TODO: 测试用牌山
 
             //初始化牌山
             //yama.init();
+            //TODO: 测试用牌山
             yama.data = [93,100,122,36,82,131,75,118,21,13,37,60,30,49,27,130,129,
                          80,101,20,91,57,26,134,38,113,108,120,116,31,83,29,51,112,
                          62,85,69,128,109,23,0,97,7,42,11,87,121,48,117,1,126,
@@ -2173,7 +2207,8 @@ var ioResponse = function(io){
                          103,9,25,68,59,114,127,17,56,43,74,19,104,14,119,6,96,
                          90,10,24,86,4,125,132,102,110,54,39,47,77,18,106,61,72,
                          63,45,84,99,34,5,79,88,133,28,95,123,22,53,124,73,71];
-
+            //bug牌山（
+            yama.data = [0,1,2,3,19,20,24,40,109,110,111,112,83,88,89,91,4,5,6,7,44,48,31,30,113,114,116,117,96,104,108,101,8,10,9,11,58,60,64,84,118,120,121,124,82,126,127,128,12,85,125,123,14,86,129,122,51,119,71,72,59,28,23,74,49,93,36,100,102,99,97,43,92,47,45,75,34,65,95,52,73,135,33,70,94,56,38,29,80,63,18,69,76,133,41,13,103,79,42,81,61,55,53,98,105,54,115,131,22,78,25,46,35,32,134,27,68,15,130,17,67,50,62,26,37,106,21,87,132,90,107,57,39,77,16,66]
             console.log(JSON.stringify(yama));
             //初始化该局变量
             for(var i=0;i<4;i++){
@@ -2198,14 +2233,15 @@ var ioResponse = function(io){
             }
             //置状态为开始状态,庄家摸牌
             state = round%4;
+            var whoDraw = players[state];
             for(var i=0;i<4;i++){
               if(i===state){
-                playerDraw(players[state],'normal');
+                playerDraw(whoDraw,'normal');
                 //console.log(players[state].tehai.haiIndex);
               }
               else{
                 players[i].emit('draw', {
-                  turn: players[state].ji,
+                  turn: whoDraw.tehai.ji,
                   hai: null,
                   kan: null,
                   agari: null,
@@ -2219,8 +2255,11 @@ var ioResponse = function(io){
           if(state===this.number){
             if(this.tehai.haiIndex.indexOf(param)!==-1){
 
+              console.log(players[0].tehai.haiIndex);
+              console.log(players[1].tehai.haiIndex);
+              console.log(players[2].tehai.haiIndex);
               console.log(players[3].tehai.haiIndex);
-              console.log(JSON.stringify(players[3].tehai.hai));
+
 
               //TODO: 立直宣言弃牌
 
@@ -2242,23 +2281,28 @@ var ioResponse = function(io){
 
               //检查是否有中断操作
               for(var i=0;i<4;i++){
+                if(i===state){
+                  continue;
+                }
                 var result = operationDetect(players[i],lastPlay);
                 operationSet(players[i],result);
               }
+              console.log("state: ", state);
               //检查当前state，如果有操作标志位则结束流程，等待player操作
               if(state>=0&&state<4){
                 //无事发生直接摸牌
                 if(yama.getLength()>10){
                   //下家摸牌
                   state = nextPlayer(state);
+                  var whoDraw = players[state];
                   for(var i=0;i<4;i++){
                     if(i===state){
-                      playerDraw(players[state],'normal');
+                      playerDraw(whoDraw,'normal');
                       //console.log(players[state].tehai.haiIndex);
                     }
                     else{
                       players[i].emit('draw', {
-                        turn: players[state].ji,
+                        turn: whoDraw.tehai.ji,
                         hai: null,
                         kan: null,
                         agari: null,
