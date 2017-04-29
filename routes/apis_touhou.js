@@ -1746,6 +1746,10 @@ var ioResponse = function(io){
   //摸牌70张
   var hostCreate = function(participants){
     var players = participants;
+    players[0].ready = false;
+    players[1].ready = false;
+    players[2].ready = false;
+    players[3].ready = false;
     //一局进行状态
     //-2:结束
     //-1:等待开始
@@ -1789,6 +1793,12 @@ var ioResponse = function(io){
           return player.tehai.haiIndex.splice(player.tehai.haiIndex.indexOf(index*4+(3-i)),1);
         }
       }
+    };
+    var getReady = function(player){
+      players[player].ready = true;
+    };
+    var isReady = function(){
+      return players[0].ready&&players[1].ready&&players[2].ready&&players[3].ready;
     };
     var roundInit = function(player){
       player.tehai.haiIndex = [];
@@ -1880,9 +1890,18 @@ var ioResponse = function(io){
     };
     //一局结束(以及整场结束)
     var roundEnd = function(result){
-      for(var i=0;i<4;i++){
-        players[i].emit('roundEnd',result);
+      for(var i = 0; i < players.length; i++){
+        players[i].emit("roundEnd", result);
+        for(var j=0;j<result.length;j++){
+          result[j].data.player += 3;
+          result[j].data.player %= 4;
+        }
       }
+      //等待准备
+      players[0].ready = false;
+      players[1].ready = false;
+      players[2].ready = false;
+      players[3].ready = false;
       //局数提升
       round++;
       if(round<8){
@@ -2167,10 +2186,7 @@ var ioResponse = function(io){
                   }
                 }
               }
-              roundEnd();
-              for(var i = 0; i < players.length; i++){
-                players[i].emit("roundEnd", result);
-              }
+              roundEnd(result);
               break;
           }
         }
@@ -2191,13 +2207,15 @@ var ioResponse = function(io){
     return function(instruction,param){
       switch(instruction){
         case 'ready':
-          if(state===-1&&playerReady<4&&playerReady>=0)playerReady++;
-          if(playerReady>=4){
+          //if(state===-1&&playerReady<4&&playerReady>=0)playerReady++;
+          //if(playerReady>=4){
+          getReady(this.number);
+          if(isReady()){
             playerReady = 0;
 
 
             //初始化牌山
-            yama.init();
+            //yama.init();
             //TODO: 测试用牌山
             //yama.data = [93,100,122,36,82,131,75,118,21,13,37,60,30,49,27,130,129,
             //              80,101,20,91,57,26,134,38,113,108,120,116,31,83,29,51,112,
@@ -2208,7 +2226,7 @@ var ioResponse = function(io){
             //              90,10,24,86,4,125,132,102,110,54,39,47,77,18,106,61,72,
             //              63,45,84,99,34,5,79,88,133,28,95,123,22,53,124,73,71];
             //bug牌山（
-            //yama.data = [0,1,2,3,19,20,24,40,109,110,111,112,83,88,89,91,4,5,6,7,44,48,31,30,113,114,116,117,96,104,108,101,8,10,9,11,58,60,64,84,118,120,121,124,82,126,127,128,12,85,125,123,14,86,129,122,51,119,71,72,59,28,23,74,49,93,36,100,102,99,97,43,92,47,45,75,34,65,95,52,73,135,33,70,94,56,38,29,80,63,18,69,76,133,41,13,103,79,42,81,61,55,53,98,105,54,115,131,22,78,25,46,35,32,134,27,68,15,130,17,67,50,62,26,37,106,21,87,132,90,107,57,39,77,16,66]
+            yama.data = [0,1,2,3,19,20,24,40,109,110,111,112,83,88,89,91,4,5,6,7,44,48,31,30,113,114,116,117,96,104,108,101,8,10,9,11,58,60,64,84,118,120,121,124,82,126,127,128,12,85,125,123,14,86,129,122,51,119,71,72,59,28,23,74,49,93,36,100,102,99,97,43,92,47,45,75,34,65,95,52,73,135,33,70,94,56,38,29,80,63,18,69,76,133,41,13,103,79,42,81,61,55,53,98,105,54,115,131,22,78,25,46,35,32,134,27,68,15,130,17,67,50,62,26,37,106,21,87,132,90,107,57,39,77,16,66]
             console.log(JSON.stringify(yama));
             //初始化该局变量
             for(var i=0;i<4;i++){
