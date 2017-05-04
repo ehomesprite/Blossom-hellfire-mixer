@@ -114,7 +114,15 @@ Furo.prototype.count = function(){
 };
 Furo.prototype.noFuro = function(tile){
   for(var i=0;i<this.data.length;i++){
-    if(this.data[i].tile===tile&&this.data[i].value!==10){
+    if(this.data[i].tile===tile&&this.data[i].value!==9){
+      return false;
+    }
+  }
+  return true;
+};
+Furo.prototype.riichi = function(){
+  for(var i=0;i<this.data.length;i++){
+    if(this.data[i].value!==9){
       return false;
     }
   }
@@ -474,6 +482,13 @@ var syanten = function(){
 
     syanten.normal = normal[0];
 
+    syanten.result = syanten.kokushi;
+    if(syanten.chitoi < syanten.result){
+      syanten.result = syanten.chitoi;
+    }
+    if(syanten.normal < syanten.result){
+      syanten.result = syanten.normal;
+    }
     return syanten;
   }
 }();
@@ -1691,10 +1706,7 @@ var agariPoint = function(){
         index = i;
       }
     }
-    tehai.agari.final = tehai.agari.result[index];
-  };
-  var pointCalc = function(basePoint,multiplier){
-    return Math.ceil((basePoint*multiplier)/100)*100;
+    tehai.agari.final = Math.ceil(tehai.agari.result[index]/100)*100;
   };
   return function(tehai){
     //流满
@@ -1708,7 +1720,6 @@ var agariPoint = function(){
       hanMerge(tehai);
       basePoint(tehai);
       highestPoint(tehai);
-      //tehai.basePoint = tehai.fu*Math.pow(2,tehai.han+2);
     }
     return tehai;
   };
@@ -1871,11 +1882,11 @@ var ioResponse = function(io){
       if(type==='empty'){
         drawHai = null;
       }
-      lastPlay.player = player.number;
-      lastPlay.hai = drawHai;
-      var result = operationDetect(player, lastPlay, true);
-      operationSet(player,result);
-      if(drawHai!==null){
+      else{
+        lastPlay.player = player.number;
+        lastPlay.hai = drawHai;
+        var result = operationDetect(player, lastPlay, true);
+        operationSet(player,result);
         addHai(player,drawHai);
       }
       //发送摸牌数据
@@ -1883,9 +1894,9 @@ var ioResponse = function(io){
       player.emit('draw',{
         turn: player.tehai.ji,
         hai: drawHai,
-        kan: result.kan,
-        agari: result.agari,
-        riichi: result.riichi
+        kan: result&&result.kan,
+        agari: result&&result.agari,
+        riichi: result&&result.riichi
       })
     };
     //一局结束(以及整场结束)
@@ -1964,10 +1975,9 @@ var ioResponse = function(io){
           result.data.push(10);
         }
         //立直
-        // if(syanten(player.tehai)===0){
-        //   result.riichi = true;
-        // }
-        //TODO: 调整和牌判定在没胡牌时返回向听数，用以进行立直判断
+        if(!player.tehai.riichi&&player.tehai.furo.riichi()&&syanten(player.tehai).result<=0){
+          result.data.push(14);
+        }
       }
       //和
       var test = clone(player.tehai);
@@ -2015,15 +2025,15 @@ var ioResponse = function(io){
           case 13:
             state+=16384*Math.pow(2,player.number);//置等待和牌标记位
             break;
+          //立直
+          case 14:
+            state+=262144*Math.pow(2,player.number);//置等待立直标记位
+            break;
         }
       }
       if(operation.data.length>0){
         player.emit('operation',operation);
       }
-      //立直
-      // if(operation.riichi){
-      //   state+=262144*Math.pow(2,player.number);
-      // }
     };
     var operationPass = function(number){
       //取消该玩家的全部标志位
@@ -2215,7 +2225,7 @@ var ioResponse = function(io){
 
 
             //初始化牌山
-            //yama.init();
+            yama.init();
             //TODO: 测试用牌山
             //yama.data = [93,100,122,36,82,131,75,118,21,13,37,60,30,49,27,130,129,
             //              80,101,20,91,57,26,134,38,113,108,120,116,31,83,29,51,112,
@@ -2226,7 +2236,7 @@ var ioResponse = function(io){
             //              90,10,24,86,4,125,132,102,110,54,39,47,77,18,106,61,72,
             //              63,45,84,99,34,5,79,88,133,28,95,123,22,53,124,73,71];
             //bug牌山（
-            yama.data = [0,1,2,3,19,20,24,40,109,110,111,112,83,88,89,91,4,5,6,7,44,48,31,30,113,114,116,117,96,104,108,101,8,10,9,11,58,60,64,84,118,120,121,124,82,126,127,128,12,85,125,123,14,86,129,122,51,119,71,72,59,28,23,74,49,93,36,100,102,99,97,43,92,47,45,75,34,65,95,52,73,135,33,70,94,56,38,29,80,63,18,69,76,133,41,13,103,79,42,81,61,55,53,98,105,54,115,131,22,78,25,46,35,32,134,27,68,15,130,17,67,50,62,26,37,106,21,87,132,90,107,57,39,77,16,66]
+            //yama.data = [0,1,2,3,19,20,24,40,109,110,111,112,83,88,89,91,4,5,6,7,44,48,31,30,113,114,116,117,96,104,108,101,8,10,9,11,58,60,64,84,118,120,121,124,82,126,127,128,12,85,125,123,14,86,129,122,51,119,71,72,59,28,23,74,49,93,36,100,102,99,97,43,92,47,45,75,34,65,95,52,73,135,33,70,94,56,38,29,80,63,18,69,76,133,41,13,103,79,42,81,61,55,53,98,105,54,115,131,22,78,25,46,35,32,134,27,68,15,130,17,67,50,62,26,37,106,21,87,132,90,107,57,39,77,16,66]
             console.log(JSON.stringify(yama));
             //初始化该局变量
             for(var i=0;i<4;i++){
@@ -2272,15 +2282,24 @@ var ioResponse = function(io){
         case 'discard':
           if(state===this.number){
             if(this.tehai.haiIndex.indexOf(param)!==-1){
-
-              console.log(players[0].tehai.haiIndex);
-              console.log(players[1].tehai.haiIndex);
-              console.log(players[2].tehai.haiIndex);
-              console.log(players[3].tehai.haiIndex);
-
-
-              //TODO: 立直宣言弃牌
-
+              if(this.tehai.riichiReady){
+                deleteHai(this,param);
+                if(syanten(this.tehai).result!==0){
+                  addHai(this,param);
+                  return {status: 'error', text: 'invalid riichi discard'};
+                }
+                else{
+                  addHai(this,param);
+                  this.tehai.riichiReady = false;
+                }
+              }
+              else{
+                if(this.tehai.riichi){
+                  if(this.tehai.haiIndex[this.tehai.haiIndex.length-1]!==param){
+                    return {status: 'error', text: 'invalid riichi discard.'};
+                  }
+                }
+              }
               //初始化操作队列
               operationQueue.reset();
               //从手牌中移除
@@ -2470,9 +2489,18 @@ var ioResponse = function(io){
               //因为立直只会在自摸时触发
               //故不需要将其置入队列
               //暗杠和加杠也不需要，但与明杠混合，置入队列也无影响
-              //此处进入立直准备状态，在弃牌后进入实际立直状态，切牌变为立直表示牌
+              //
               //TODO: 完成立直
-              //this.tehai.riichiReady = true;
+              //2017/05/01
+              //立直时置两个标记
+              //一置立直状态
+              //二置当前立直弃牌
+              //弃牌标记在弃牌时对牌进行有效检测
+              this.tehai.riichi = true;
+              this.tehai.riichiReady = true;
+              operationPass(this.number);
+              //立直不需要handle
+              //等待弃牌
               break;
             case 7:
               //玩家放弃操作时直接进入此部分
