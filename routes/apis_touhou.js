@@ -1906,6 +1906,10 @@ var ioResponse = function(io){
         for(var j=0;j<result.length;j++){
           result[j].data.player += 3;
           result[j].data.player %= 4;
+          result[j].data.oya += 3;
+          result[j].data.oya %= 4;
+          result[j].data.agariFrom += 3;
+          result[j].data.agariFrom %= 4;
         }
       }
       //等待准备
@@ -2099,6 +2103,8 @@ var ioResponse = function(io){
                   tehai: tehaiMerger(i)
                 });
               }
+              //从弃牌中移除
+              players[state&4].tehai.discard.pop();
               //空摸牌，置state
               state = result.player;
               playerDraw(players[result.player], 'empty');
@@ -2115,6 +2121,8 @@ var ioResponse = function(io){
                   tehai: tehaiMerger(i)
                 });
               }
+              //从弃牌中移除
+              players[state&4].tehai.discard.pop();
               //空摸牌，置state
               state = result.player;
               playerDraw(players[result.player], 'empty');
@@ -2127,6 +2135,8 @@ var ioResponse = function(io){
                 deleteIndexFuzzy(players[result.player], tile);
                 deleteIndexFuzzy(players[result.player], tile);
                 players[result.player].tehai.furo.set(tile, result.data.value);
+                //从弃牌中移除
+                players[state&4].tehai.discard.pop();
               }
               //暗杠
               if(result.data.value === 9){
@@ -2159,6 +2169,7 @@ var ioResponse = function(io){
               //   player: this.number,
               //   oya: this.tehai.ji-27;
               //   haiIndex: this.tehai.haiIndex,
+              //   furo: this.tehai.furo,
               //   agariFrom: this.tehai.agariFrom,
               //   agariHai: this.tehai.agariHai,
               //   fu: this.tehai.agari.final.fu,
@@ -2324,7 +2335,6 @@ var ioResponse = function(io){
                 var result = operationDetect(players[i],lastPlay);
                 operationSet(players[i],result);
               }
-              console.log("state: ", state);
               //检查当前state，如果有操作标志位则结束流程，等待player操作
               if(state>=0&&state<4){
                 //无事发生直接摸牌
@@ -2465,6 +2475,7 @@ var ioResponse = function(io){
                     player: this.number,
                     oya: this.tehai.ji-27,
                     haiIndex: this.tehai.haiIndex,
+                    furo: this.tehai.furo,
                     agariFrom: this.tehai.agariFrom,
                     agariHai: this.tehai.agariHai,
                     fu: this.tehai.agari.final.fu,
@@ -2512,6 +2523,7 @@ var ioResponse = function(io){
         case 'disconnect':
           break;
       }
+      return {status: 'success', state: state};
     }
   };
 
@@ -2554,25 +2566,23 @@ var ioResponse = function(io){
     });
     socket.on('discard', function(data, fn){
       var ret = socket.operate('discard',data.value);
-      if(ret!==undefined){
-        if(ret.status==='error'){
-          console.log('Player ' + socket.number + ' ' + ret.text)
-        }
+      if(ret.status==='error'){
+        console.log('Player ' + socket.number + ' ' + ret.text)
       }
       else{
         console.log('Player ' + socket.number + ' discarded ' + data.value);
+        console.log('State: ', ret.state);
         fn('success');
       }
     });
     socket.on('operation', function(param, fn){
       var ret = socket.operate('operation', param);
-      if(ret!==undefined){
-        if(ret.status==='error'){
-          console.log('Player ' + socket.number + ' ' + ret.text)
-        }
+      if(ret.status==='error'){
+        console.log('Player ' + socket.number + ' ' + ret.text)
       }
       else{
         console.log('Player ' + socket.number + ' operate ' , param);
+        console.log('State: ', ret.state);
         fn();
       }
     });
