@@ -6,38 +6,31 @@ block style
   link(rel='stylesheet', href='/snowchat/lib/font-awesome/css/font-awesome.css')
 
 block content
-  .container-fluid
-    h2= title
-    .alert.alert-danger(style='display:'+(errDisplay||'none'))= errText
-    .alert.alert-success(style='display:'+(succDisplay||'none'))= succText
-    form.form-horizonal(method="post", action="/users/login")
-      .form-group
-        label.control-label.col-sm-2(for='username')= '\u7528\u6237\u540d:'
-        .col-sm-10
-          input.form-control#username(type='username', name="username", placeholder='\u8f93\u5165\u7528\u6237\u540d' value= username||'')
-      .form-group
-        label.control-label.col-sm-2(for='password')= '\u5bc6\u7801:'
-        .col-sm-10
-          input.form-control#password(type='password', name="password", placeholder='\u8f93\u5165\u5bc6\u7801')
-      .form-group
-        .col-sm-offset-2.col-sm-10
-          .checkbox
-            label
-              input#remember(type='checkbox', name="remember")
-            = 'Remember me'
-      .form-group
-        .col-sm-offset-2.col-sm-10
-          button.btn.btn-default#submit(type="submit")= 'Submit'
-  script.
-    //function login(){
-    //  var data={
-    //    username: document.getElementById("username").value,
-    //    password: document.getElementById("password").value,
-    //    remember: document.getElementById("remember").checked
-    //  }
-    //  var xhr = new XMLHttpRequest();
-    //  xhr.open("POST", "/users/login", true);
-    //  xhr.setRequestHeader("Content-type","application/json");
-    //  xhr.send(JSON.stringify(data));
-    //}
-    //document.getElementById("submit").addEventListener("click",login);
+  #loginPage
+    .wrap.container-fluid
+      .row
+        .col-md-6
+          .row
+            h2= title
+          .alert.alert-danger(style='display:'+(errDisplay||'none'))= errText
+          .alert.alert-success(style='display:'+(succDisplay||'none'))= succText
+          form.form-horizontal(method="post", action="/users/login")
+            .form-group
+              label.control-label.col-sm-2(for='username')= '\u7528\u6237\u540d:'
+              .col-sm-10
+                input.form-control#username(type='username', name="username", placeholder='\u8f93\u5165\u7528\u6237\u540d' value= username||'')
+            .form-group
+              label.control-label.col-sm-2(for='password')= '\u5bc6\u7801:'
+              .col-sm-10
+                input.form-control#password(type='password', name="password", placeholder='\u8f93\u5165\u5bc6\u7801')
+            .form-group
+              .col-sm-offset-2.col-sm-10
+                .checkbox
+                  label
+                    input#remember(type='checkbox', name="remember")
+                  = 'Remember me'
+            .form-group
+              .col-sm-offset-2.col-sm-10
+                button.btn.btn-default#submit(type="submit")= 'Submit'
+        .col-md-6
+          img(src='/snowchat/img/IMG_0251.JPG')
